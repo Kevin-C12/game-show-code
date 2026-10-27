@@ -9,6 +9,7 @@ import javafx.stage.Stage;
 
 /**
  * JavaFX App
+ * To Run this print this in terminal "mvn clean javafx:run"
  */
 public class App extends Application {
 

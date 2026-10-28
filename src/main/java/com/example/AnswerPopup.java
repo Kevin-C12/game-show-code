@@ -28,7 +28,7 @@ public class AnswerPopup {
             Consumer<Boolean> onAnswer,
             Runnable onSubmit) {
 
-        // Create popup
+        //Create popup
         Stage popup = new Stage();
         popup.initOwner(parent);
         popup.initModality(Modality.WINDOW_MODAL);
@@ -42,7 +42,7 @@ public class AnswerPopup {
 
         List<TextField> fields = new ArrayList<>();
 
-        // Create an input for each array element
+        //Create an input for each array element
         for (int i = 0; i < correctAnswer.size(); i++) {
             TextField field = new TextField();
             field.setPromptText("?");
@@ -57,7 +57,7 @@ public class AnswerPopup {
         Button submit = new Button("Submit Answer");
         submit.getStyleClass().add("submit-button");
 
-        // Large correct / incorrect symbol
+        //Large correct / incorrect symbol
         Label feedback = new Label();
         feedback.setVisible(false);
         feedback.setMouseTransparent(true);
@@ -81,14 +81,14 @@ public class AnswerPopup {
         PauseTransition delay =
             new PauseTransition(Duration.seconds(1));
 
-        // Check answer
+        //Check answer
         submit.setOnAction(e -> {
 
             boolean correct = AnswerChecker.checkAnswer(
                 fields, correctAnswer
             );
 
-            // Prevent repeated submissions
+            //Prevent repeated submissions
             submit.setDisable(true);
             onSubmit.run();
 
@@ -101,11 +101,12 @@ public class AnswerPopup {
             feedback.setVisible(true);
             content.setOpacity(0.15);
 
+            //Correct answer/ wrong answer
             System.out.println(
                 correct ? "CORRECT ANSWER!" : "WRONG ANSWER!"
             );
 
-            // Show result, then return to main window
+            //Show result, then return to main window
             delay.setOnFinished(event -> {
                 popup.close();
                 onAnswer.accept(correct);
@@ -114,7 +115,7 @@ public class AnswerPopup {
             delay.play();
         });
 
-        // Prevent a pending result from firing after forced close
+        //Prevent a pending result from firing after forced close
         popup.setOnHidden(e -> delay.stop());
 
         popup.setScene(scene);

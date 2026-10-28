@@ -16,9 +16,9 @@ public class InsertionSort {
         Random rand = new Random();
         int[] arr = new int[listSize];
 
-        // Generate random list (0-99)
+        // Generate random list (0-10)
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = rand.nextInt(100);
+            arr[i] = rand.nextInt(10);
         }
 
         // Save original unordered list

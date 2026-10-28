@@ -138,26 +138,32 @@ public class QuestionReturn {
     // The getter and setter methods for the three arrays
 
     public String[] getInsertionSort() {
+        // User validation goes here
         return insertionSort;
     }
 
     public void setInsertionSort(String[] insertionSort) {
+        // User validation goes here
         this.insertionSort = insertionSort;
     }
 
     public String[] getSelectionSort() {
+        // User validation goes here
         return selectionSort;
     }
 
     public void setSelectionSort(String[] selectionSort) {
+        // User validation goes here
         this.selectionSort = selectionSort;
     }
 
     public String[] getBubbleSort() {
+        // User validation goes here
         return bubbleSort;
     }
 
     public void setBubbleSort(String[] bubbleSort) {
+        // User validation goes here
         this.bubbleSort = bubbleSort;
     }
 }

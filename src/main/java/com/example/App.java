@@ -6,6 +6,7 @@ import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.geometry.Pos;
+import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
@@ -18,38 +19,28 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 
-import com.google.gson.JsonArray;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
-
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.io.IOException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
 
 public class App extends Application {
 
-    // Game state
-    private final GameState game = new GameState();
+    // Game logic
+    private final GameEngine engine = new GameEngine();
 
-    // Windows and layouts
+    // Layouts
     private BorderPane root;
     private VBox landingPage;
     private VBox gamePage;
 
-    // Header components
+    // Header
     private Label teamLabel;
     private Label timerLabel;
     private Label strikeLabel;
     private Label landingMessage;
 
-    // Game components
+    // Game controls
     private HBox numberBoxes;
     private HBox answerBoxes;
     private Button buzzer;
@@ -57,37 +48,17 @@ public class App extends Application {
     private Label resultLabel;
     private Label feedbackSymbol;
 
-    private final List<TextField> answerFields = new ArrayList<>();
+    private final List<TextField> answerFields =
+        new ArrayList<>();
 
-    // Current question
-    private JsonArray correctAnswer;
-
-    // Timer
+    // Animation and timing
     private Timeline timer;
     private PauseTransition feedbackTimer;
-    private int secondsLeft = 30;
 
-    // Game flags
-    private boolean buzzed = false;
     private boolean spaceHeld = false;
-    private boolean playing = false;
     private boolean showingFeedback = false;
     private boolean devToolsOpen = false;
 
-    // Developer demo arrays
-    private static final int[] SORTED_DEMO = {
-        7, 15, 29, 42, 61, 83
-    };
-
-    private static final int[] UNSORTED_DEMO = {
-        42, 15, 83, 7, 29, 61
-    };
-
-    private static final int[] WORST_CASE_DEMO = {
-        83, 61, 42, 29, 15, 7
-    };
-
-    // Timestamp formatter
     private final DateTimeFormatter formatter =
         DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
@@ -96,79 +67,80 @@ public class App extends Application {
 
         root = new BorderPane();
 
-        // Create header components
+        // Header
         teamLabel = new Label();
-        timerLabel = new Label("00:30");
+        timerLabel = new Label();
         strikeLabel = new Label();
 
         teamLabel.getStyleClass().add("team-label");
         timerLabel.getStyleClass().add("timer-label");
         strikeLabel.getStyleClass().add("strike-label");
 
-        // Header layout
-        BorderPane topBar = new BorderPane();
-        topBar.setLeft(teamLabel);
-        topBar.setCenter(timerLabel);
-        topBar.setRight(strikeLabel);
-        topBar.getStyleClass().add("game-header");
+        BorderPane header = new BorderPane();
+        header.setLeft(teamLabel);
+        header.setCenter(timerLabel);
+        header.setRight(strikeLabel);
+        header.getStyleClass().add("game-header");
 
-        root.setTop(topBar);
+        root.setTop(header);
 
         // Create pages
         createLandingPage();
         createGamePage();
 
-        // Add developer controls on right
+        // Developer tools
         root.setRight(createDevTools());
 
-        // Create countdown timer
+        // Countdown timer
         timer = new Timeline(
             new KeyFrame(Duration.seconds(1), e -> {
 
-                if (!playing || showingFeedback) {
+                if (showingFeedback || !engine.isPlaying()) {
                     return;
                 }
 
-                secondsLeft--;
-                updateHeader();
-
-                if (secondsLeft <= 0) {
+                if (engine.tick()) {
                     timer.stop();
-                    wrongAnswer();
+
+                    GameEngine.Result result =
+                        engine.timeExpired();
+
+                    showFeedback(result);
                 }
+
+                updateHeader();
             })
         );
 
         timer.setCycleCount(Timeline.INDEFINITE);
 
-        // Feedback timer
+        // Feedback animation
         feedbackTimer = new PauseTransition(
             Duration.seconds(1.5)
         );
 
-        // Feedback overlay
         feedbackSymbol = new Label();
         feedbackSymbol.getStyleClass().add("feedback-symbol");
         feedbackSymbol.setMouseTransparent(true);
         feedbackSymbol.setVisible(false);
 
-        StackPane mainLayout = new StackPane(
+        StackPane layout = new StackPane(
             root, feedbackSymbol
         );
 
-        // Start at landing screen
+        // Show landing screen
         showLanding("Team 1 is ready!");
 
-        Scene scene = new Scene(mainLayout, 1000, 650);
+        Scene scene = new Scene(layout, 1000, 650);
 
-        // Space bar activates buzzer
+        // Space activates buzzer
         scene.setOnKeyPressed(e -> {
 
             if (e.getCode() == KeyCode.SPACE
-                    && playing
-                    && !buzzed
                     && !spaceHeld
-                    && !showingFeedback) {
+                    && !showingFeedback
+                    && engine.isPlaying()
+                    && !engine.isBuzzed()) {
 
                 spaceHeld = true;
                 buzzer.fire();
@@ -182,7 +154,6 @@ public class App extends Application {
             }
         });
 
-        // Load stylesheet
         scene.getStylesheets().add(
             getClass().getResource("/styles.css")
                 .toExternalForm()
@@ -193,7 +164,7 @@ public class App extends Application {
         stage.show();
     }
 
-    // Create landing page
+    // Landing page
     private void createLandingPage() {
 
         landingPage = new VBox(25);
@@ -208,12 +179,11 @@ public class App extends Application {
         startButton.setOnAction(e -> startQuestion());
 
         landingPage.getChildren().addAll(
-            landingMessage,
-            startButton
+            landingMessage, startButton
         );
     }
 
-    // Create gameplay page
+    // Main game page
     private void createGamePage() {
 
         gamePage = new VBox(20);
@@ -224,7 +194,6 @@ public class App extends Application {
         );
         instruction.getStyleClass().add("question-label");
 
-        // Original number boxes
         numberBoxes = new HBox(10);
         numberBoxes.setAlignment(Pos.CENTER);
 
@@ -233,35 +202,14 @@ public class App extends Application {
         buzzer.getStyleClass().add("buzzer");
         buzzer.setFocusTraversable(false);
 
-        // Answer fields
-        answerBoxes = new HBox(10);
-        answerBoxes.setAlignment(Pos.CENTER);
-        setShown(answerBoxes, false);
-
-        // Submit button
-        submitButton = new Button("Submit Answer");
-        submitButton.getStyleClass().add("submit-button");
-        setShown(submitButton, false);
-
-        // Feedback text
-        resultLabel = new Label();
-        resultLabel.getStyleClass().add("result-label");
-
-        // Pass button
-        Button passButton = new Button("Pass to Other Team");
-        passButton.getStyleClass().add("pass-button");
-
-        // Buzzer action
         buzzer.setOnAction(e -> {
 
-            if (buzzed || !playing || showingFeedback) {
+            if (showingFeedback || !engine.buzz()) {
                 return;
             }
 
-            buzzed = true;
-
             System.out.println(
-                "TEAM " + game.getCurrentTeam() +
+                "TEAM " + engine.getCurrentTeam() +
                 " BUZZED AT: " +
                 LocalTime.now().format(formatter)
             );
@@ -271,7 +219,6 @@ public class App extends Application {
             buzzer.setScaleX(0.94);
             buzzer.setScaleY(0.94);
 
-            // Reveal answer inputs
             setShown(answerBoxes, true);
             setShown(submitButton, true);
 
@@ -280,71 +227,37 @@ public class App extends Application {
             }
         });
 
-        // Check submitted answer
-        submitButton.setOnAction(e -> {
+        // Answer inputs
+        answerBoxes = new HBox(10);
+        answerBoxes.setAlignment(Pos.CENTER);
+        setShown(answerBoxes, false);
 
-            if (!playing || !buzzed ||
-                showingFeedback || correctAnswer == null) {
-                return;
-            }
+        // Submit button
+        submitButton = new Button("Submit Answer");
+        submitButton.getStyleClass().add("submit-button");
+        setShown(submitButton, false);
 
-            boolean correct = AnswerChecker.checkAnswer(
-                answerFields, correctAnswer
-            );
+        submitButton.setOnAction(e -> submitAnswer());
 
-            showingFeedback = true;
-            timer.stop();
-            submitButton.setDisable(true);
+        resultLabel = new Label();
+        resultLabel.getStyleClass().add("result-label");
 
-            feedbackSymbol.setText(correct ? "✓" : "✕");
-            feedbackSymbol.setStyle(
-                "-fx-text-fill: " +
-                (correct ? "#22c55e;" : "#ef2929;")
-            );
+        // Pass button
+        Button passButton = new Button("Pass to Other Team");
+        passButton.getStyleClass().add("pass-button");
 
-            feedbackSymbol.setVisible(true);
-
-            resultLabel.setText(
-                correct ? "CORRECT!" : "INCORRECT!"
-            );
-
-            resultLabel.setStyle(
-                "-fx-text-fill: " +
-                (correct ? "#22c55e;" : "#ef2929;")
-            );
-
-            System.out.println(
-                correct ? "ANSWER CORRECT!" : "ANSWER WRONG!"
-            );
-
-            feedbackTimer.setOnFinished(event -> {
-
-                feedbackSymbol.setVisible(false);
-                showingFeedback = false;
-
-                if (correct) {
-                    correctAnswer();
-                } else {
-                    wrongAnswer();
-                }
-            });
-
-            feedbackTimer.playFromStart();
-        });
-
-        // Pass turn to other team
         passButton.setOnAction(e -> {
 
-            if (!playing || showingFeedback) {
+            if (!engine.isPlaying() || showingFeedback) {
                 return;
             }
 
-            endQuestion();
-            game.switchTeam();
+            timer.stop();
+            engine.passTurn();
 
             showLanding(
                 "Question passed to Team " +
-                game.getCurrentTeam()
+                engine.getCurrentTeam()
             );
         });
 
@@ -359,116 +272,17 @@ public class App extends Application {
         );
     }
 
-    // Create expandable DevTools panel
-    private VBox createDevTools() {
-
-        VBox devToolsPanel = new VBox(10);
-        devToolsPanel.setAlignment(Pos.TOP_CENTER);
-        devToolsPanel.getStyleClass().add("devtools-panel");
-
-        Button devButton = new Button("⚙ DevTools");
-        Button sortedButton = new Button("Sorted List");
-        Button unsortedButton = new Button("Unsorted List");
-        Button worstCaseButton = new Button("Worst Case");
-
-        devButton.getStyleClass().add("devtools-button");
-        sortedButton.getStyleClass().add("devtools-button");
-        unsortedButton.getStyleClass().add("devtools-button");
-        worstCaseButton.getStyleClass().add("devtools-button");
-
-        // Hide options initially
-        setShown(sortedButton, false);
-        setShown(unsortedButton, false);
-        setShown(worstCaseButton, false);
-
-        // Expand or collapse DevTools
-        devButton.setOnAction(e -> {
-
-            devToolsOpen = !devToolsOpen;
-
-            setShown(sortedButton, devToolsOpen);
-            setShown(unsortedButton, devToolsOpen);
-            setShown(worstCaseButton, devToolsOpen);
-        });
-
-        // Load predefined lists
-        sortedButton.setOnAction(e ->
-            loadDemoQuestion(SORTED_DEMO)
-        );
-
-        unsortedButton.setOnAction(e ->
-            loadDemoQuestion(UNSORTED_DEMO)
-        );
-
-        worstCaseButton.setOnAction(e ->
-            loadDemoQuestion(WORST_CASE_DEMO)
-        );
-
-        devToolsPanel.getChildren().addAll(
-            devButton,
-            sortedButton,
-            unsortedButton,
-            worstCaseButton
-        );
-
-        return devToolsPanel;
-    }
-
-    // Start a new insertion sort question
+    // Start question using GameEngine
     private void startQuestion() {
 
         try {
+            engine.startQuestion();
 
-            // Generate question JSON
-            InsertionSort.run();
+            displayNumbers();
+            resetAnswerUI();
 
-            Path folder = Path.of(
-                "src/main/java/com/example/json"
-            );
-
-            // Find highest numbered question
-            Path newest;
-
-            try (Stream<Path> files = Files.list(folder)) {
-
-                newest = files
-                    .filter(p -> p.getFileName().toString()
-                        .matches("insertionSort\\d+\\.json"))
-                    .max(Comparator.comparingInt(
-                        this::getQuestionNumber
-                    ))
-                    .orElseThrow(() ->
-                        new IOException("No insertion sort questions found")
-                    );
-            }
-
-            // Load question data
-            JsonObject question = JsonParser
-                .parseString(Files.readString(newest))
-                .getAsJsonObject();
-
-            JsonArray original =
-                question.getAsJsonArray("unOrderedList");
-
-            correctAnswer = question
-                .getAsJsonObject("sortSteps")
-                .getAsJsonArray("step1");
-
-            displayNumbers(original);
-
-            // Start fresh after previous 3 strikes
-            if (game.getStrikes() >= 3) {
-                game.resetStrikes();
-            }
-
-            resetBuzzer();
-
-            playing = true;
-            secondsLeft = 30;
-
-            updateHeader();
             root.setCenter(gamePage);
-
+            updateHeader();
             timer.playFromStart();
 
         } catch (Exception e) {
@@ -477,20 +291,21 @@ public class App extends Application {
         }
     }
 
-    // Display original array and create matching inputs
-    private void displayNumbers(JsonArray numbers) {
+    // Display numbers and create inputs
+    private void displayNumbers() {
 
         numberBoxes.getChildren().clear();
-        answerFields.clear();
         answerBoxes.getChildren().clear();
+        answerFields.clear();
 
-        for (int i = 0; i < numbers.size(); i++) {
+        for (int number : engine.getNumbers()) {
 
-            Label number = new Label(
-                numbers.get(i).getAsString()
+            Label label = new Label(
+                String.valueOf(number)
             );
-            number.getStyleClass().add("number-box");
-            numberBoxes.getChildren().add(number);
+            label.getStyleClass().add("number-box");
+
+            numberBoxes.getChildren().add(label);
 
             TextField field = new TextField();
             field.setPromptText("?");
@@ -503,69 +318,102 @@ public class App extends Application {
         }
     }
 
-    // Developer testing question
-    private void loadDemoQuestion(int[] demoArray) {
+    // Submit player's answer
+    private void submitAnswer() {
 
-        if (!playing || showingFeedback) {
+        if (!engine.isPlaying() ||
+                !engine.isBuzzed() || showingFeedback) {
             return;
         }
 
-        int[] arr = demoArray.clone();
+        int[] answer = new int[answerFields.size()];
 
-        // Calculate first insertion sort step
-        int key = arr[1];
-        int j = 0;
-
-        while (j >= 0 && arr[j] > key) {
-            arr[j + 1] = arr[j];
-            j--;
+        // Convert text fields into integers
+        try {
+            for (int i = 0; i < answer.length; i++) {
+                answer[i] = Integer.parseInt(
+                    answerFields.get(i).getText().trim()
+                );
+            }
+        } catch (NumberFormatException e) {
+            resultLabel.setText(
+                "Please enter valid numbers in every box."
+            );
+            resultLabel.setStyle("-fx-text-fill: #ef4444;");
+            return;
         }
 
-        arr[j + 1] = key;
+        // Let GameEngine check the answer
+        GameEngine.Result result =
+            engine.submitAnswer(answer);
 
-        // Build expected answer
-        JsonArray expected = new JsonArray();
-
-        for (int number : arr) {
-            expected.add(number);
-        }
-
-        correctAnswer = expected;
-
-        // Build original test question
-        JsonArray original = new JsonArray();
-
-        for (int number : demoArray) {
-            original.add(number);
-        }
-
-        displayNumbers(original);
-
-        resetBuzzer();
-
-        secondsLeft = 30;
-        updateHeader();
-        timer.playFromStart();
-
-        String demoType;
-
-        if (Arrays.equals(demoArray, SORTED_DEMO)) {
-            demoType = "Sorted";
-        } else if (Arrays.equals(demoArray, WORST_CASE_DEMO)) {
-            demoType = "Worst Case";
-        } else {
-            demoType = "Unsorted";
-        }
-
-        System.out.println(
-            "DEVTOOLS: Loaded " + demoType + " list"
-        );
+        showFeedback(result);
     }
 
-    // Restore buzzer and answer UI
-    private void resetBuzzer() {
+    // Display correct or incorrect feedback
+    private void showFeedback(GameEngine.Result result) {
 
-        buzzed = false;
+        showingFeedback = true;
+        timer.stop();
+        submitButton.setDisable(true);
+
+        boolean correct =
+            result == GameEngine.Result.CORRECT;
+
+        feedbackSymbol.setText(correct ? "✓" : "✕");
+        feedbackSymbol.setStyle(
+            "-fx-text-fill: " +
+            (correct ? "#22c55e;" : "#ef2929;")
+        );
+        feedbackSymbol.setVisible(true);
+
+        resultLabel.setText(
+            correct ? "CORRECT!" : "INCORRECT!"
+        );
+        resultLabel.setStyle(
+            "-fx-text-fill: " +
+            (correct ? "#22c55e;" : "#ef2929;")
+        );
+
+        updateHeader();
+
+        feedbackTimer.setOnFinished(e -> {
+
+            feedbackSymbol.setVisible(false);
+            showingFeedback = false;
+
+            switch (result) {
+
+                case CORRECT:
+                    showLanding(
+                        "CORRECT! Team " +
+                        engine.getCurrentTeam() +
+                        " earns 10 points and plays again!"
+                    );
+                    break;
+
+                case THREE_STRIKES:
+                    showLanding(
+                        "Three strikes! Team " +
+                        engine.getCurrentTeam() +
+                        "'s turn."
+                    );
+                    break;
+
+                case WRONG:
+                    resetAnswerUI();
+                    updateHeader();
+                    timer.playFromStart();
+                    break;
+            }
+        });
+
+        feedbackTimer.playFromStart();
+    }
+
+    // Reset buzzer and answer fields
+    private void resetAnswerUI() {
+
         spaceHeld = false;
 
         buzzer.setText("BUZZ!");
@@ -584,104 +432,81 @@ public class App extends Application {
         }
     }
 
-    // Show or hide a component
-    private void setShown(
-            javafx.scene.Node node, boolean visible) {
+    // Developer tools
+    private VBox createDevTools() {
 
-        node.setVisible(visible);
-        node.setManaged(visible);
-    }
+        VBox panel = new VBox(10);
+        panel.setAlignment(Pos.TOP_CENTER);
+        panel.getStyleClass().add("devtools-panel");
 
-    // Get numeric suffix in insertionSortN.json
-    private int getQuestionNumber(Path path) {
+        Button devButton = new Button("⚙ DevTools");
+        Button sortedButton = new Button("Sorted List");
+        Button unsortedButton = new Button("Unsorted List");
+        Button worstButton = new Button("Worst Case");
 
-        String name = path.getFileName().toString();
+        Button[] options = {
+            sortedButton, unsortedButton, worstButton
+        };
 
-        return Integer.parseInt(
-            name.replace("insertionSort", "")
-                .replace(".json", "")
+        devButton.getStyleClass().add("devtools-button");
+
+        for (Button button : options) {
+            button.getStyleClass().add("devtools-button");
+            setShown(button, false);
+        }
+
+        // Open and close developer options
+        devButton.setOnAction(e -> {
+
+            devToolsOpen = !devToolsOpen;
+
+            for (Button button : options) {
+                setShown(button, devToolsOpen);
+            }
+        });
+
+        sortedButton.setOnAction(e ->
+            loadDemo(GameEngine.SORTED_DEMO)
         );
+
+        unsortedButton.setOnAction(e ->
+            loadDemo(GameEngine.UNSORTED_DEMO)
+        );
+
+        worstButton.setOnAction(e ->
+            loadDemo(GameEngine.WORST_CASE_DEMO)
+        );
+
+        panel.getChildren().addAll(
+            devButton, sortedButton,
+            unsortedButton, worstButton
+        );
+
+        return panel;
     }
 
-    // Handle correct answer
-    private void correctAnswer() {
+    // Load developer question
+    private void loadDemo(int[] array) {
 
-        if (!playing) {
+        if (!engine.isPlaying() || showingFeedback) {
             return;
         }
 
-        game.addPoints(10);
-        game.resetStrikes();
+        engine.loadDemoQuestion(array);
 
-        System.out.println(
-            "Team " + game.getCurrentTeam() +
-            " scored 10 points!"
-        );
-
-        endQuestion();
-
-        showLanding(
-            "CORRECT! Team " +
-            game.getCurrentTeam() +
-            " earns 10 points and plays again!"
-        );
-    }
-
-    // Handle incorrect answer or timeout
-    private void wrongAnswer() {
-
-        if (!playing) {
-            return;
-        }
-
-        game.addStrike();
-
-        System.out.println(
-            "Team " + game.getCurrentTeam() +
-            " strike " + game.getStrikes()
-        );
-
+        displayNumbers();
+        resetAnswerUI();
         updateHeader();
 
-        if (game.getStrikes() >= 3) {
+        timer.playFromStart();
 
-            endQuestion();
-            game.switchTeam();
-
-            showLanding(
-                "Three strikes! Team " +
-                game.getCurrentTeam() +
-                "'s turn."
-            );
-
-        } else {
-
-            // Same team retries the same question
-            resetBuzzer();
-
-            secondsLeft = 30;
-            updateHeader();
-
-            timer.playFromStart();
-        }
+        System.out.println("DEVTOOLS: Demo question loaded");
     }
 
-    // Stop the current question
-    private void endQuestion() {
-
-        playing = false;
-        timer.stop();
-        feedbackTimer.stop();
-
-        feedbackSymbol.setVisible(false);
-        showingFeedback = false;
-    }
-
-    // Show landing page between questions
+    // Show landing screen
     private void showLanding(String message) {
 
-        playing = false;
-        secondsLeft = 30;
+        timer.stop();
 
         landingMessage.setText(message);
         root.setCenter(landingPage);
@@ -689,28 +514,36 @@ public class App extends Application {
         updateHeader();
     }
 
-    // Refresh team, scores, timer and strikes
+    // Update header
     private void updateHeader() {
 
         teamLabel.setText(
-            "TEAM " + game.getCurrentTeam() +
-            "\nTeam 1: " + game.getTeam1Points() +
-            " pts | Team 2: " + game.getTeam2Points() +
+            "TEAM " + engine.getCurrentTeam() +
+            "\nTeam 1: " + engine.getTeam1Points() +
+            " pts | Team 2: " + engine.getTeam2Points() +
             " pts"
         );
 
         timerLabel.setText(
-            String.format("00:%02d", secondsLeft)
+            String.format(
+                "00:%02d", engine.getSecondsLeft()
+            )
         );
 
         StringBuilder strikes = new StringBuilder();
 
         for (int i = 0; i < 3; i++) {
             strikes.append(
-                i < game.getStrikes() ? "✕ " : "○ "
+                i < engine.getStrikes() ? "✕ " : "○ "
             );
         }
 
         strikeLabel.setText(strikes.toString());
+    }
+
+    // Show or hide GUI component
+    private void setShown(Node node, boolean visible) {
+        node.setVisible(visible);
+        node.setManaged(visible);
     }
 }

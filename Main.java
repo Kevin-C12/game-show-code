@@ -31,31 +31,31 @@ public class Main {
         }
 
         //Prints a heading and show the unsorted array in a grid
-        System.out.println("--------------------------------------------");                           //Header for the sort
+        System.out.println("--------------------------------------------");                            //Header for the sort
         System.out.println("       SELECTION SORT: 1 THROUGH 20");
         System.out.println("--------------------------------------------");
-        System.out.println("   Original numbers in random positions:");                               //Introduces the starting array
-        printNumbers(numbers, 0);                                                           //Shows zero values as sorted because sorting has not started
+        System.out.println("   Original numbers in random positions:");                                //Introduces the starting array
+        printNumbers(numbers, 0);                                                                      //Shows zero values as sorted because sorting has not started
 
-        int comparisons = 0;                                                                            //Counts how many pairs of values are compared
-        int swaps = 0;                                                                                  //Then counts how many times two values exchange positions
+        int comparisons = 0;                                                                           //Counts how many pairs of values are compared
+        int swaps = 0;                                                                                 //Then counts how many times two values exchange positions
 
         //Each pass finds the smallest value in the unsorted part of the array
-        for (int start = 0; start < numbers.length - 1; start++) {                                      //Chooses the next sorted position
-            int minIndex = start;                                                                       //Assumes the first unsorted value is the smallest so far
-            System.out.println();                                                                       //Leaves a blank line between passes for readability (below line is also a header)
+        for (int start = 0; start < numbers.length - 1; start++) {                                     //Chooses the next sorted position
+            int minIndex = start;                                                                      //Assumes the first unsorted value is the smallest so far
+            System.out.println();                                                                      //Leaves a blank line between passes for readability (below line is also a header)
             System.out.println("--------------- PASS " + (start + 1) + " ---------------");
 
             //Compares the current smallest value with every later unsorted value
-            for (int check = start + 1; check < numbers.length; check++) {                              //Checks each remaining position
+            for (int check = start + 1; check < numbers.length; check++) {                             //Checks each remaining position
                 System.out.printf("Step %d: [MIN %2d] compared with [CHECK %2d]",
-                        comparisons + 1, numbers[minIndex], numbers[check]);                            //Shows the comparison
+                        comparisons + 1, numbers[minIndex], numbers[check]);                           //Shows the comparison
 
-                if (numbers[check] < numbers[minIndex]) {                                               //Tests whether the checked value is smaller
-                    minIndex = check;                                                                   //Remembers the index of the new smallest value
-                    System.out.printf(" -> new minimum is %d%n", numbers[minIndex]);            //Announce the new minimum.
+                if (numbers[check] < numbers[minIndex]) {                                              //Tests whether the checked value is smaller
+                    minIndex = check;                                                                  //Remembers the index of the new smallest value
+                    System.out.printf(" -> new minimum is %d%n", numbers[minIndex]);                   //Announce the new minimum.
                 } else { // The checked value is not smaller than the current minimum.
-                    System.out.println(" -> minimum stays the same");                                //Explains that the minimum did not change
+                    System.out.println(" -> minimum stays the same");                                  //Explains that the minimum did not change
                 }
 
                 comparisons++;                                                                         //Counts the comparison's for the final summary
@@ -81,11 +81,11 @@ public class Main {
 
         //Prints the final sorted array and the algorithm's totals
         System.out.println();                                                                          //Separates the final result from the last pass
-        System.out.println("--------------- SORT COMPLETE ---------------");                        //Marks the end of sorting
-        System.out.println("Final numbers:");                                                       //Introduces the completely sorted array
-        printNumbers(numbers, numbers.length);                                                        //Marks all array values as sorted
-        System.out.println("Comparisons: " + comparisons);                                            //Shows the total number of comparisons
-        System.out.println("Swaps: " + swaps);                                                        //Shows the total number of swaps
+        System.out.println("--------------- SORT COMPLETE ---------------");                           //Marks the end of sorting
+        System.out.println("Final numbers:");                                                          //Introduces the completely sorted array
+        printNumbers(numbers, numbers.length);                                                         //Marks all array values as sorted
+        System.out.println("Comparisons: " + comparisons);                                             //Shows the total number of comparisons
+        System.out.println("Swaps: " + swaps);                                                         //Shows the total number of swaps
     }
 
 

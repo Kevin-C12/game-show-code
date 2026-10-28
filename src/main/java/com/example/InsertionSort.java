@@ -1,50 +1,86 @@
+
 package com.example;
 
+import java.util.*;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import com.google.gson.GsonBuilder;
 
 public class InsertionSort {
-  
-    // Function to sort array using insertion sort
-    void sort(int a[])
-    {
-        int n = a.length;
-        for (int i = 1; i < n; ++i) {
-            int k = a[i];
+
+    // Change this to control the list size
+    static final int listSize = 6;
+
+    public static void run() throws Exception {
+
+        Random rand = new Random();
+        int[] arr = new int[listSize];
+
+        // Generate random list (0-99)
+        for (int i = 0; i < arr.length; i++) {
+            arr[i] = rand.nextInt(100);
+        }
+
+        // Save original unordered list
+        int[] original = arr.clone();
+
+        // Store sorting steps
+        Map<String, int[]> steps = new LinkedHashMap<>();
+
+        // Insertion sort algorithm
+        for (int i = 1; i < arr.length; i++) {
+
+            int key = arr[i];
             int j = i - 1;
 
-            // Move elements of arr[0..i-1], that are
-            // greater than key, to one position ahead
-            // of their current position
-            while (j >= 0 && a[j] > k) {
-                a[j + 1] = a[j];
-                
-                j = j - 1;
+            // Shift larger elements to the right
+            while (j >= 0 && arr[j] > key) {
+                arr[j + 1] = arr[j];
+                j--;
             }
-            
-            a[j + 1] = k;
-            
-            printArray(a);
+
+            // Insert the element
+            arr[j + 1] = key;
+
+            // Save the array after each insertion
+            steps.put("step" + i, arr.clone());
         }
-        
-    }
 
-    public static void main(String args[])
-    {
-        int a[] = { 12, 11, 13, 5, 6 };
+        // Build JSON structure
+        Map<String, Object> data = new LinkedHashMap<>();
 
-        InsertionSort ob = new InsertionSort();
-        printArray(a);
-        System.out.println("Sorting array");
-        ob.sort(a);
-        System.out.println("Sorted array");
-        printArray(a);
-        
-    }
+        data.put("sort", "insertionSort");
+        data.put("unOrderedList", original);
+        data.put("sortSteps", steps);
 
-    static void printArray(int a[])
-    {
-        int n = a.length;
-        for (int i = 0; i < n; ++i)
-            System.out.print(a[i] + " ");
-        System.out.println();
+        // Convert data to JSON
+        String json = new GsonBuilder()
+                .setPrettyPrinting()
+                .create()
+                .toJson(data);
+
+        // Folder for JSON files
+        Path folder = Path.of("src/main/java/com/example/json");
+
+        // Create folder if it doesn't exist
+        Files.createDirectories(folder);
+
+        // Find next available filename
+        int fileNumber = 1;
+        Path file;
+
+        do {
+            file = folder.resolve(
+                "insertionSort" + fileNumber + ".json"
+            );
+            fileNumber++;
+        } while (Files.exists(file));
+
+        // Save JSON to file
+        Files.writeString(file, json);
+
+        // Print JSON and file location to terminal
+        System.out.println(json);
+        System.out.println("Saved to: " + file);
     }
 }

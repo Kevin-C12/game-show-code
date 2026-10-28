@@ -69,3 +69,114 @@
     -fx-padding: 10px;
     -fx-background-radius: 8px;
 }
+
+
+.question-label {
+    -fx-text-fill: white;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
+}
+
+.question-label {
+    -fx-text-fill: white;
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+}
+
+.text-field {
+    -fx-font-size: 18px;
+    -fx-alignment: center;
+    -fx-background-radius: 8px;
+    -fx-padding: 10px 4px;
+}
+
+.buzzer.buzzer-activated,
+.buzzer.buzzer-activated:hover,
+.buzzer.buzzer-activated:pressed {
+    -fx-background-color: #7f1d1d;
+    -fx-text-fill: white;
+    -fx-border-color: #450a0a;
+    -fx-effect: innershadow(
+        gaussian, rgba(0,0,0,0.8),
+        15, 0.5, 0, 5
+    );
+}
+
+/* Individual number boxes */
+.number-box {
+    -fx-background-color: #273449;
+    -fx-border-color: #475569;
+    -fx-border-width: 2px;
+    -fx-background-radius: 8px;
+    -fx-border-radius: 8px;
+
+    -fx-min-width: 65px;
+    -fx-min-height: 65px;
+    -fx-alignment: center;
+
+    -fx-text-fill: white;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+}
+
+/* Individual answer fields */
+.answer-box {
+    -fx-pref-width: 65px;
+    -fx-pref-height: 55px;
+
+    -fx-font-size: 20px;
+    -fx-font-weight: bold;
+    -fx-alignment: center;
+
+    -fx-background-radius: 8px;
+}
+
+/* Instruction label */
+.question-label {
+    -fx-text-fill: white;
+    -fx-font-size: 22px;
+    -fx-font-weight: bold;
+}
+
+
+/* Submit answer button */
+.submit-button {
+    -fx-background-color: #2563eb;
+    -fx-text-fill: white;
+    -fx-font-size: 18px;
+    -fx-font-weight: bold;
+
+    -fx-padding: 12px 30px;
+    -fx-background-radius: 10px;
+
+    -fx-cursor: hand;
+}
+
+.submit-button:hover {
+    -fx-background-color: #1d4ed8;
+}
+
+.submit-button:disabled {
+    -fx-opacity: 0.5;
+}
+
+/* Correct/incorrect text */
+.result-label {
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+/* Giant Family Feud-style X or checkmark */
+.feedback-symbol {
+    -fx-font-size: 280px;
+    -fx-font-weight: bold;
+
+    -fx-effect: dropshadow(
+        gaussian,
+        rgba(0,0,0,0.85),
+        20, 0.5, 0, 8
+    );
+}

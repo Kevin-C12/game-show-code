@@ -2,7 +2,6 @@ package com.example;
 
 public class QuestionReturn {
 
-
     // All of these sort might changed to different data types in the future, 
     // but for now they are all strings
     public String[] insertionSort = {};

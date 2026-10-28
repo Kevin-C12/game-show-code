@@ -2,4 +2,4 @@
 Code for running the game show
 
 # Game Rules
-Start with the first question 
+Two teams play against eachother

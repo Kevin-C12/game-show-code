@@ -79,10 +79,12 @@ public class App extends Application {
         7, 15, 29, 42, 61, 83
     };
 
+    // Developer demo arrays unsorted
     private static final int[] UNSORTED_DEMO = {
         42, 15, 83, 7, 29, 61
     };
 
+    // Developer demo worse case
     private static final int[] WORST_CASE_DEMO = {
         83, 61, 42, 29, 15, 7
     };

@@ -34,6 +34,7 @@ public class AnswerPopup {
         popup.initModality(Modality.WINDOW_MODAL);
         popup.setTitle("Answer Question");
 
+        //Th
         Label title = new Label("Enter the next insertion sort step");
         title.getStyleClass().add("question-label");
 

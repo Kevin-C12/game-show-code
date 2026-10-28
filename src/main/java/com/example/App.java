@@ -6,14 +6,10 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
-import javafx.scene.control.TextField;
 import javafx.scene.input.KeyCode;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
-import javafx.animation.PauseTransition;
-import javafx.util.Duration;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
@@ -24,8 +20,6 @@ import java.time.format.DateTimeFormatter;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.stream.Stream;
 
 public class App extends Application {
@@ -43,26 +37,24 @@ public class App extends Application {
     @Override
     public void start(Stage stage) {
 
-        // Create components
+        // Create GUI components
         Label title = new Label("Welcome to Sort Feud!");
         Label instruction = new Label(
             "What is the array after Step 1 of insertion sort?"
         );
 
         Button buzzer = new Button("BUZZ!");
-        Button submitButton = new Button("Submit Answer");
+        Button answerButton = new Button("Answer Question");
 
-        Label resultLabel = new Label("");
-
-        // Containers
+        // Create container for original array
         HBox numberBoxes = new HBox(10);
-        HBox answerBoxes = new HBox(10);
-
         numberBoxes.setAlignment(Pos.CENTER);
-        answerBoxes.setAlignment(Pos.CENTER);
 
-        // Store text fields and correct answers
-        List<TextField> answerFields = new ArrayList<>();
+        // Hide answer button until buzzer is pressed
+        answerButton.setVisible(false);
+        answerButton.setManaged(false);
+
+        // Store correct answer from JSON
         JsonArray correctAnswer = new JsonArray();
 
         // Load insertion sort question
@@ -75,14 +67,16 @@ public class App extends Application {
                 .parseString(json)
                 .getAsJsonObject();
 
+            // Get original unordered list
             JsonArray list =
                 question.getAsJsonArray("unOrderedList");
 
+            // Get correct answer for Step 1
             correctAnswer = question
                 .getAsJsonObject("sortSteps")
                 .getAsJsonArray("step1");
 
-            // Create number boxes and answer fields
+            // Create an individual box for each number
             for (int i = 0; i < list.size(); i++) {
 
                 int number = list.get(i).getAsInt();
@@ -92,57 +86,45 @@ public class App extends Application {
                 );
 
                 numberLabel.getStyleClass().add("number-box");
+
                 numberBoxes.getChildren().add(numberLabel);
-
-                TextField field = new TextField();
-                field.setPromptText("?");
-                field.setPrefWidth(65);
-                field.setAlignment(Pos.CENTER);
-                field.getStyleClass().add("answer-box");
-
-                answerFields.add(field);
-                answerBoxes.getChildren().add(field);
             }
 
         } else {
             instruction.setText(
                 "No insertion sort questions found"
             );
+
             buzzer.setDisable(true);
         }
 
-        // Store correct answer for event handler
+        // Make correct answer available to popup
         final JsonArray expectedAnswer = correctAnswer;
-
-        // Hide answer controls initially
-        answerBoxes.setVisible(false);
-        answerBoxes.setManaged(false);
-
-        submitButton.setVisible(false);
-        submitButton.setManaged(false);
 
         // Apply CSS classes
         title.getStyleClass().add("title");
         instruction.getStyleClass().add("question-label");
         buzzer.getStyleClass().add("buzzer");
-        submitButton.getStyleClass().add("submit-button");
-        resultLabel.getStyleClass().add("result-label");
+        answerButton.getStyleClass().add("submit-button");
 
+        // Prevent buzzer keyboard focus
         buzzer.setFocusTraversable(false);
 
-        // Timestamp formatter
+        // Format timestamp with milliseconds
         DateTimeFormatter formatter =
             DateTimeFormatter.ofPattern("HH:mm:ss.SSS");
 
-        // Buzzer behavior
+        // Buzzer action
         buzzer.setOnAction(event -> {
 
+            // Only allow the first buzz
             if (buzzed) {
                 return;
             }
 
             buzzed = true;
 
+            // Record and print timestamp
             LocalTime pressTime = LocalTime.now();
 
             System.out.println(
@@ -150,9 +132,11 @@ public class App extends Application {
                 + pressTime.format(formatter)
             );
 
-            // Permanently change buzzer
+            // Permanently change buzzer appearance
             buzzer.setText("BUZZED!");
+            buzzer.getStyleClass().add("buzzer-activated");
 
+            // Make button look pressed in 3D
             buzzer.setStyle(
                 "-fx-background-color: #7f1d1d;" +
                 "-fx-text-fill: white;" +
@@ -166,85 +150,19 @@ public class App extends Application {
             buzzer.setScaleX(0.94);
             buzzer.setScaleY(0.94);
 
-            // Reveal answer controls
-            answerBoxes.setVisible(true);
-            answerBoxes.setManaged(true);
-
-            submitButton.setVisible(true);
-            submitButton.setManaged(true);
-
-            if (!answerFields.isEmpty()) {
-                answerFields.get(0).requestFocus();
-            }
+            // Reveal Answer Question button
+            answerButton.setVisible(true);
+            answerButton.setManaged(true);
         });
 
-        // Create overlay for correct/wrong animation
-        Label feedbackSymbol = new Label();
-        feedbackSymbol.getStyleClass().add("feedback-symbol");
-        feedbackSymbol.setMouseTransparent(true);
-        feedbackSymbol.setVisible(false);
+        // Open answer popup
+        answerButton.setOnAction(event -> {
 
-        // Automatically hide feedback
-        PauseTransition feedbackTimer =
-            new PauseTransition(Duration.seconds(1.5));
+            AnswerPopup.show(stage, expectedAnswer);
 
-        feedbackTimer.setOnFinished(e -> {
-            feedbackSymbol.setVisible(false);
         });
 
-        // Submit button behavior
-        submitButton.setOnAction(event -> {
-
-            boolean correct = AnswerChecker.checkAnswer(
-                answerFields,
-                expectedAnswer
-            );
-
-            feedbackTimer.stop();
-
-            if (correct) {
-
-                // Correct answer
-                feedbackSymbol.setText("✓");
-                feedbackSymbol.setStyle(
-                    "-fx-text-fill: #22c55e;"
-                );
-
-                resultLabel.setText("CORRECT!");
-                resultLabel.setStyle(
-                    "-fx-text-fill: #22c55e;"
-                );
-
-                System.out.println("ANSWER CORRECT!");
-
-                // Prevent another submission
-                submitButton.setDisable(true);
-
-            } else {
-
-                // Incorrect answer
-                feedbackSymbol.setText("✕");
-                feedbackSymbol.setStyle(
-                    "-fx-text-fill: #ef2929;"
-                );
-
-                resultLabel.setText(
-                    "INCORRECT! Try again."
-                );
-
-                resultLabel.setStyle(
-                    "-fx-text-fill: #ef2929;"
-                );
-
-                System.out.println("ANSWER INCORRECT!");
-            }
-
-            // Display giant feedback symbol
-            feedbackSymbol.setVisible(true);
-            feedbackTimer.playFromStart();
-        });
-
-        // Main layout
+        // Create main layout
         VBox root = new VBox(25);
         root.setAlignment(Pos.CENTER);
 
@@ -253,26 +171,19 @@ public class App extends Application {
             instruction,
             numberBoxes,
             buzzer,
-            answerBoxes,
-            submitButton,
-            resultLabel
+            answerButton
         );
 
-        // StackPane allows feedback to overlay GUI
-        StackPane mainLayout = new StackPane();
+        // Create scene
+        Scene scene = new Scene(root, 800, 600);
 
-        mainLayout.getChildren().addAll(
-            root,
-            feedbackSymbol
-        );
-
-        Scene scene = new Scene(mainLayout, 900, 650);
-
-        // Space activates buzzer
+        // Activate buzzer using Space
         scene.setOnKeyPressed(event -> {
+
             if (event.getCode() == KeyCode.SPACE
                     && !spaceHeld
-                    && !buzzed) {
+                    && !buzzed
+                    && !buzzer.isDisabled()) {
 
                 spaceHeld = true;
                 buzzer.fire();
@@ -280,7 +191,9 @@ public class App extends Application {
             }
         });
 
+        // Reset Space key state on release
         scene.setOnKeyReleased(event -> {
+
             if (event.getCode() == KeyCode.SPACE) {
                 spaceHeld = false;
             }
@@ -288,14 +201,17 @@ public class App extends Application {
 
         // Load stylesheet
         scene.getStylesheets().add(
-            getClass().getResource("/styles.css").toExternalForm()
+            getClass()
+                .getResource("/styles.css")
+                .toExternalForm()
         );
 
-        // Delete generated JSON when window closes
+        // Delete generated JSON files when window closes
         stage.setOnCloseRequest(event -> {
             deleteGeneratedJson();
         });
 
+        // Display GUI
         stage.setTitle("Sort Feud");
         stage.setScene(scene);
         stage.show();
@@ -315,15 +231,22 @@ public class App extends Application {
         try (Stream<Path> files = Files.list(folder)) {
 
             files.filter(path -> {
+
                 String name = path.getFileName().toString();
 
                 return name.matches(
                     "(insertionSort|selectionSort|bubbleSort)\\d+\\.json"
                 );
+
             }).forEach(path -> {
 
                 try {
                     Files.deleteIfExists(path);
+
+                    System.out.println(
+                        "Deleted: " + path.getFileName()
+                    );
+
                 } catch (IOException e) {
                     System.out.println(
                         "Could not delete: " + path

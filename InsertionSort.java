@@ -5,20 +5,20 @@
 
 package gameshow.src.main;
 
-// Sorts an integer array by inserting each value into its correct position.
+                                                    // Sorts an integer array by inserting each value into its correct position.
 public class InsertionSort {
   
-    // Sorts the array in place using the insertion sort .
+                                                    // Sorts the array in place using the insertion sort .
     void sort(int a[])
     {
-        int n = a.length; // Number of values in the array.
+        int n = a.length;                           // Number of values in the array.
 
-        // The first value is already a sorted section of length one.
+                                                    // The first value is already a sorted section of length one.
         for (int i = 1; i < n; ++i) {
-            int k = a[i]; // Value to insert into the sorted section.
-            int j = i - 1; // Start at the end of the sorted section.
+            int k = a[i];                           // Value to insert into the sorted section.
+            int j = i - 1;                          // Start at the end of the sorted section.
 
-            // Shift larger values one position right to make room for k.
+                                                    // Shift larger values one position right to make room for k.
             while (j >= 0 && a[j] > k) {
                 a[j + 1] = a[j];
                 j = j - 1;                          // Continue checking values to the left.

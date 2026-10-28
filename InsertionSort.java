@@ -1,56 +1,55 @@
 // William Harrison
 //APCSA
 //Game show project
-// 28 october 2026
+// 10-28-2026
 
+package gameshow.src.main;
 
 
 public class InsertionSort {
-
+  
     // Function to sort array using insertion sort
-    static void sort(int[] a) {
-        if (a == null || a.length <= 1) {
-            return;
-        }
-
+    void sort(int a[])
+    {
         int n = a.length;
         for (int i = 1; i < n; ++i) {
-            int key = a[i];
+            int k = a[i];
             int j = i - 1;
 
             // Move elements of arr[0..i-1], that are
             // greater than key, to one position ahead
             // of their current position
-            while (j >= 0 && a[j] > key) {
+            while (j >= 0 && a[j] > k) {
                 a[j + 1] = a[j];
-                j--;
+                
+                j = j - 1;
             }
-
-            a[j + 1] = key;
+            
+            a[j + 1] = k;
+            
             printArray(a);
         }
+        
     }
 
-    public static void main(String[] args) {
-        int[] a = { 12, 11, 13, 5, 6 };
+    public static void main(String args[])
+    {
+        int a[] = { 12, 11, 13, 5, 6 };
 
-        System.out.println("Original array");
+        InsertionSort ob = new InsertionSort();
         printArray(a);
         System.out.println("Sorting array");
-        sort(a);
+        ob.sort(a);
         System.out.println("Sorted array");
         printArray(a);
+        
     }
 
-    static void printArray(int[] a) {
-        if (a == null) {
-            System.out.println("[]");
-            return;
-        }
-
-        for (int value : a) {
-            System.out.print(value + " ");
-        }
+    static void printArray(int a[])
+    {
+        int n = a.length;
+        for (int i = 0; i < n; ++i)
+            System.out.print(a[i] + " ");
         System.out.println();
     }
 }

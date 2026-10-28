@@ -1,53 +1,93 @@
 package com.example;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
 
-import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 
 public class Loader {
-
-    /**
-     * Loads questions from a JSON file.
-     * @param filePath the location of the JSON file
-     * @return a SortData object containing the questions
+/**
+     * Loads all sorting questions from the JSON folder.
+     * @return a QuestionReturn object containing all sorting questions
      */
-    public static QuestionReturn loadQuestions(String filePath) {
+    public static QuestionReturn loadQuestions() {
 
-        //Creates a Gson object
-        Gson gson = new Gson();
+        // Creates a QuestionReturn object
+        QuestionReturn data = new QuestionReturn();
 
-        //Finds the JSON file in the resources folder
-        InputStream input = Loader.class.getResourceAsStream(filePath);
+        // Gets the JSON folder
+        Path folder = Path.of("src/main/java/com/example/json");
 
-        //Checks if the file exists
-        if (input == null) {
-            System.out.println("Could not find JSON file: " + filePath);
-            return null;
-        }
+        // Creates lists to temporarily store the questions
+        List<String> insertion = new ArrayList<>();
+        List<String> selection = new ArrayList<>();
+        List<String> merge = new ArrayList<>();
 
         try {
 
-            //Creates a reader for the JSON file
-            InputStreamReader reader = new InputStreamReader(input);
+            // Checks if the JSON folder exists
+            if (!Files.exists(folder)) {
+                System.out.println("JSON folder not found!");
+                return data;
+            }
 
-            //Converts the JSON file into the SortData class
-            QuestionReturn data = gson.fromJson(reader, QuestionReturn.class);
+            // Reads all files in the folder
+            try (var files = Files.list(folder)) {
 
-            //Closes the reader
-            reader.close();
+                files.filter(path -> path.toString().endsWith(".json"))
+                     .sorted()
+                     .forEach(path -> {
 
-            //Returns the loaded data
-            return data;
+                        try {
+
+                             // Reads the JSON file
+                            String json = Files.readString(path);
+
+                             // Converts the JSON string into a JSON object
+                            JsonObject object =
+                                JsonParser.parseString(json).getAsJsonObject();
+
+                             // Gets the sorting algorithm type
+                            String sortType =
+                                object.get("sort").getAsString();
+
+                             // Stores the JSON in the correct list
+                            switch (sortType) {
+
+                                 case "insertionSort":
+                                    insertion.add(json);
+                                    break;
+
+                                 case "selectionSort":
+                                    selection.add(json);
+                                    break;
+
+                                 case "MergeSort":
+                                    merge.add(json);
+                                    break;
+                            }
+
+                        } catch (Exception e) {
+                            System.out.println("Error reading: " + path.getFileName());
+                        }
+                     });
+            }
+
+            // Converts the lists into arrays
+            data.setInsertionSort(insertion.toArray(new String[0]));
+            data.setSelectionSort(selection.toArray(new String[0]));
+            data.setMergeSort(merge.toArray(new String[0]));
 
         } catch (IOException e) {
-
-            //Displays an error if loading fails
-            System.out.println("Error loading questions: " + e.getMessage());
-
-            return null;
+            e.printStackTrace();
         }
+
+        // Returns the completed QuestionReturn object
+        return data;
     }
 }
 

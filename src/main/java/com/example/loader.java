@@ -11,7 +11,7 @@ public class Loader {
     /**
      * Loads questions from a JSON file.
      * @param filePath the location of the JSON file
-     * @return a SortData object containing the questions
+     * @return a QuestionReturn object containing the questions
      */
     public static QuestionReturn loadQuestions(String filePath) {
 

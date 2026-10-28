@@ -1,0 +1,71 @@
+
+.root {
+    -fx-background-color: #111827;
+}
+
+.title {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+}
+
+/* Normal raised button */
+.buzzer {
+    -fx-background-color:
+        linear-gradient(to bottom, #fca5a5, #ef4444 45%, #b91c1c);
+
+    -fx-background-radius: 1000px;
+    -fx-border-radius: 1000px;
+
+    -fx-border-color: #7f1d1d;
+    -fx-border-width: 4px;
+
+    -fx-min-width: 150px;
+    -fx-min-height: 150px;
+    -fx-max-width: 150px;
+    -fx-max-height: 150px;
+
+    -fx-text-fill: white;
+    -fx-font-size: 24px;
+    -fx-font-weight: bold;
+
+    -fx-effect: dropshadow(
+        gaussian, rgba(0,0,0,0.65),
+        15, 0.3, 0, 9
+    );
+
+    -fx-cursor: hand;
+}
+
+/* Hover only applies before activation */
+.buzzer:hover {
+    -fx-background-color:
+        linear-gradient(to bottom, #fecaca, #f87171, #dc2626);
+}
+
+/* Permanently activated */
+.buzzer.buzzer-activated,
+.buzzer.buzzer-activated:hover,
+.buzzer.buzzer-activated:pressed {
+    -fx-background-color:
+        linear-gradient(to bottom, #7f1d1d, #991b1b, #450a0a);
+
+    -fx-border-color: #450a0a;
+
+    -fx-effect: innershadow(
+        gaussian, rgba(0,0,0,0.75),
+        14, 0.5, 0, 5
+    );
+
+    -fx-scale-x: 0.94;
+    -fx-scale-y: 0.94;
+
+    -fx-text-fill: white;
+}
+
+/* Answer input */
+.text-field {
+    -fx-font-size: 16px;
+    -fx-padding: 10px;
+    -fx-background-radius: 8px;
+}

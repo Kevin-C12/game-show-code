@@ -14,7 +14,7 @@ public class BubbleSort {
 
         //Fills array with random numbers
         for (int i = 0; i < arr.length; i++) {
-            arr[i] = rand.nextInt(0,10);
+            arr[i] = rand.nextInt(10);
         }
 
         //Returns array

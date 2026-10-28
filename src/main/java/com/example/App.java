@@ -15,9 +15,6 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) {
-        var javaVersion = SystemInfo.javaVersion();
-        var javafxVersion = SystemInfo.javafxVersion();
-
         // Loads the questions from the JSON file
         QuestionReturn data = Loader.loadQuestions("/sorts.json");
 

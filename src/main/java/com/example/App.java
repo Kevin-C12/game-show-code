@@ -15,10 +15,19 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) {
-        var javaVersion = SystemInfo.javaVersion();
-        var javafxVersion = SystemInfo.javafxVersion();
+        // Loads the questions from the JSON file
+        QuestionReturn data = Loader.loadQuestions("/sorts.json");
 
-        var label = new Label("Hello, JavaFX " + javafxVersion + ", running on Java " + javaVersion + ".");
+        // Gets the first bubble sort question
+        String question = "No questions found";
+
+        if (data != null && data.getBubbleSort() != null && data.getBubbleSort().length > 0) {
+            question = data.getBubbleSort()[0];
+        }
+
+        // Displays the loaded question
+        var label = new Label(question);
+
         var scene = new Scene(new StackPane(label), 640, 480);
         stage.setScene(scene);
         stage.show();

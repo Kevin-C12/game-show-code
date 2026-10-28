@@ -1,31 +1,20 @@
+
 package com.example;
 
 import javafx.application.Application;
-import javafx.scene.Scene;
-import javafx.scene.control.Label;
-import javafx.scene.layout.StackPane;
 import javafx.stage.Stage;
+import javafx.scene.Scene;
+import javafx.scene.layout.Pane;
 
-
-/**
- * JavaFX App
- * To Run this print this in terminal "mvn clean javafx:run"
- */
 public class App extends Application {
 
     @Override
     public void start(Stage stage) {
-        var javaVersion = SystemInfo.javaVersion();
-        var javafxVersion = SystemInfo.javafxVersion();
+        Pane root = new Pane();
+        Scene scene = new Scene(root, 640, 480);
 
-        var label = new Label("Hello, JavaFX " + javafxVersion + ", running on Java " + javaVersion + ".");
-        var scene = new Scene(new StackPane(label), 640, 480);
+        stage.setTitle("My GUI");
         stage.setScene(scene);
         stage.show();
     }
-
-    public static void main(String[] args) {
-        launch();
-    }
-
 }

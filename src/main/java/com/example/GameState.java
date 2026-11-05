@@ -3,7 +3,7 @@ package com.example;
 
 public class GameState {
 
-    private int currentTeam = 1;
+    private int currentTeam = 0;
 
     private int team1Points = 0;
     private int team2Points = 0;
@@ -26,7 +26,7 @@ public class GameState {
     // Get strikes for current team
     public int getStrikes() {
         return currentTeam == 1
-            ? team1Strikes : team2Strikes;
+            ? team1Strikes : currentTeam == 2 ? team2Strikes : 0;
     }
 
     public int getTeam1Strikes() {
@@ -53,6 +53,19 @@ public class GameState {
         } else {
             team2Strikes++;
         }
+    }
+
+    public void setCurrentTeam(int team) {
+        if (team != 1 && team != 2) {
+            throw new IllegalArgumentException("Team must be 1 or 2");
+        }
+        currentTeam = team;
+    }
+
+    public void startRound() {
+        currentTeam = 0;
+        team1Strikes = 0;
+        team2Strikes = 0;
     }
 
     // Switch teams without resetting strikes

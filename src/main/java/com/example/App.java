@@ -43,7 +43,9 @@ public class App extends Application {
     // Game controls
     private HBox numberBoxes;
     private HBox answerBoxes;
-    private Button buzzer;
+    private Button team1Buzzer;
+    private Button team2Buzzer;
+    private Label instruction;
     private Button submitButton;
     private Label resultLabel;
     private Label feedbackSymbol;
@@ -129,27 +131,27 @@ public class App extends Application {
         );
 
         // Show landing screen
-        showLanding("Team 1 is ready!");
+        showLanding("Round 1: insertion sort. Teams, get ready to buzz!");
 
         Scene scene = new Scene(layout, 1000, 650);
 
-        // Space activates buzzer
+        // Teams can buzz with the number keys.
         scene.setOnKeyPressed(e -> {
 
-            if (e.getCode() == KeyCode.SPACE
+            if ((e.getCode() == KeyCode.DIGIT1 || e.getCode() == KeyCode.DIGIT2)
                     && !spaceHeld
                     && !showingFeedback
                     && engine.isPlaying()
                     && !engine.isBuzzed()) {
 
                 spaceHeld = true;
-                buzzer.fire();
+                buzz(e.getCode() == KeyCode.DIGIT1 ? 1 : 2);
                 e.consume();
             }
         });
 
         scene.setOnKeyReleased(e -> {
-            if (e.getCode() == KeyCode.SPACE) {
+            if (e.getCode() == KeyCode.DIGIT1 || e.getCode() == KeyCode.DIGIT2) {
                 spaceHeld = false;
             }
         });
@@ -173,13 +175,21 @@ public class App extends Application {
         landingMessage = new Label();
         landingMessage.getStyleClass().add("question-label");
 
-        Button startButton = new Button("Start Question");
+        Label rules = new Label(
+            "Press 1 or 2 to buzz. Three strikes give the other team one steal chance. "
+            + "A correct answer earns 10 points."
+        );
+        rules.getStyleClass().add("rules-label");
+        rules.setWrapText(true);
+        rules.setMaxWidth(650);
+
+        Button startButton = new Button("Start Round");
         startButton.getStyleClass().add("submit-button");
 
         startButton.setOnAction(e -> startQuestion());
 
         landingPage.getChildren().addAll(
-            landingMessage, startButton
+            landingMessage, rules, startButton
         );
     }
 
@@ -189,43 +199,23 @@ public class App extends Application {
         gamePage = new VBox(20);
         gamePage.setAlignment(Pos.CENTER);
 
-        Label instruction = new Label(
-            "What is the array after Step 1 of insertion sort?"
-        );
+        instruction = new Label();
         instruction.getStyleClass().add("question-label");
 
         numberBoxes = new HBox(10);
         numberBoxes.setAlignment(Pos.CENTER);
 
-        // Buzzer
-        buzzer = new Button("BUZZ!");
-        buzzer.getStyleClass().add("buzzer");
-        buzzer.setFocusTraversable(false);
-
-        buzzer.setOnAction(e -> {
-
-            if (showingFeedback || !engine.buzz()) {
-                return;
-            }
-
-            System.out.println(
-                "TEAM " + engine.getCurrentTeam() +
-                " BUZZED AT: " +
-                LocalTime.now().format(formatter)
-            );
-
-            buzzer.setText("BUZZED!");
-            buzzer.getStyleClass().add("buzzer-activated");
-            buzzer.setScaleX(0.94);
-            buzzer.setScaleY(0.94);
-
-            setShown(answerBoxes, true);
-            setShown(submitButton, true);
-
-            if (!answerFields.isEmpty()) {
-                answerFields.get(0).requestFocus();
-            }
-        });
+        team1Buzzer = new Button("TEAM 1\nBUZZ (1)");
+        team2Buzzer = new Button("TEAM 2\nBUZZ (2)");
+        for (Button button : new Button[] {team1Buzzer, team2Buzzer}) {
+            button.getStyleClass().add("buzzer");
+            button.setFocusTraversable(false);
+            button.setWrapText(true);
+        }
+        team1Buzzer.setOnAction(e -> buzz(1));
+        team2Buzzer.setOnAction(e -> buzz(2));
+        HBox buzzers = new HBox(20, team1Buzzer, team2Buzzer);
+        buzzers.setAlignment(Pos.CENTER);
 
         // Answer inputs
         answerBoxes = new HBox(10);
@@ -242,34 +232,39 @@ public class App extends Application {
         resultLabel = new Label();
         resultLabel.getStyleClass().add("result-label");
 
-        // Pass button
-        Button passButton = new Button("Pass to Other Team");
-        passButton.getStyleClass().add("pass-button");
-
-        passButton.setOnAction(e -> {
-
-            if (!engine.isPlaying() || showingFeedback) {
-                return;
-            }
-
-            timer.stop();
-            engine.passTurn();
-
-            showLanding(
-                "Question passed to Team " +
-                engine.getCurrentTeam()
-            );
-        });
-
         gamePage.getChildren().addAll(
             instruction,
             numberBoxes,
-            buzzer,
+            buzzers,
             answerBoxes,
             submitButton,
-            resultLabel,
-            passButton
+            resultLabel
         );
+    }
+
+    private void buzz(int team) {
+        if (showingFeedback || !engine.buzz(team)) {
+            return;
+        }
+
+        System.out.println("TEAM " + team + " BUZZED AT: "
+            + LocalTime.now().format(formatter));
+
+        Button selected = team == 1 ? team1Buzzer : team2Buzzer;
+        selected.setText("BUZZED!");
+        selected.getStyleClass().add("buzzer-activated");
+        team1Buzzer.setDisable(true);
+        team2Buzzer.setDisable(true);
+
+        setShown(answerBoxes, true);
+        setShown(submitButton, true);
+        resultLabel.setText("Team " + team + ", enter your answer.");
+        updateHeader();
+        timer.playFromStart();
+
+        if (!answerFields.isEmpty()) {
+            answerFields.get(0).requestFocus();
+        }
     }
 
     // Start question using GameEngine
@@ -280,10 +275,12 @@ public class App extends Application {
 
             displayNumbers();
             resetAnswerUI();
+            instruction.setText("Round " + engine.getRoundNumber()
+                + ": What is the array after Step 1 of "
+                + engine.getSortName() + "?");
 
             root.setCenter(gamePage);
             updateHeader();
-            timer.playFromStart();
 
         } catch (Exception e) {
             showLanding("Could not generate question");
@@ -367,9 +364,7 @@ public class App extends Application {
         );
         feedbackSymbol.setVisible(true);
 
-        resultLabel.setText(
-            correct ? "CORRECT!" : "INCORRECT!"
-        );
+        resultLabel.setText(correct ? "CORRECT!" : "INCORRECT!");
         resultLabel.setStyle(
             "-fx-text-fill: " +
             (correct ? "#22c55e;" : "#ef2929;")
@@ -388,22 +383,27 @@ public class App extends Application {
                     showLanding(
                         "CORRECT! Team " +
                         engine.getCurrentTeam() +
-                        " earns 10 points and plays again!"
+                        " earns 10 points. Round " + (engine.getRoundNumber() + 1)
+                        + " is " + engine.getNextSortName() + "."
                     );
                     break;
 
                 case THREE_STRIKES:
-                    showLanding(
-                        "Three strikes! Team " +
-                        engine.getCurrentTeam() +
-                        "'s turn."
-                    );
+                    resetAnswerUI();
+                    resultLabel.setText("Three strikes! Team "
+                        + engine.getCurrentTeam() + " has one chance to steal.");
+                    updateHeader();
+                    break;
+
+                case STEAL_FAILED:
+                    showLanding("Steal missed. No points this round. Round "
+                        + (engine.getRoundNumber() + 1) + " is "
+                        + engine.getNextSortName() + ".");
                     break;
 
                 case WRONG:
                     resetAnswerUI();
                     updateHeader();
-                    timer.playFromStart();
                     break;
             }
         });
@@ -416,10 +416,12 @@ public class App extends Application {
 
         spaceHeld = false;
 
-        buzzer.setText("BUZZ!");
-        buzzer.getStyleClass().remove("buzzer-activated");
-        buzzer.setScaleX(1);
-        buzzer.setScaleY(1);
+        team1Buzzer.setText("TEAM 1\nBUZZ (1)");
+        team2Buzzer.setText("TEAM 2\nBUZZ (2)");
+        team1Buzzer.getStyleClass().remove("buzzer-activated");
+        team2Buzzer.getStyleClass().remove("buzzer-activated");
+        team1Buzzer.setDisable(engine.getCurrentTeam() == 2);
+        team2Buzzer.setDisable(engine.getCurrentTeam() == 1);
 
         setShown(answerBoxes, false);
         setShown(submitButton, false);
@@ -498,7 +500,7 @@ public class App extends Application {
         resetAnswerUI();
         updateHeader();
 
-        timer.playFromStart();
+        timer.stop();
 
         System.out.println("DEVTOOLS: Demo question loaded");
     }
@@ -518,7 +520,9 @@ public class App extends Application {
     private void updateHeader() {
 
         teamLabel.setText(
-            "TEAM " + engine.getCurrentTeam() +
+            (engine.getCurrentTeam() == 0 ? "BUZZ TO PLAY" :
+                "TEAM " + engine.getCurrentTeam()
+                + (engine.isStealAttempt() ? " - STEAL" : "")) +
             "\nTeam 1: " + engine.getTeam1Points() +
             " pts | Team 2: " + engine.getTeam2Points() +
             " pts"
@@ -534,7 +538,8 @@ public class App extends Application {
 
         for (int i = 0; i < 3; i++) {
             strikes.append(
-                i < engine.getStrikes() ? "✕ " : "○ "
+                i < (engine.isPlaying() ? engine.getRoundStrikes() : 0)
+                    ? "✕ " : "○ "
             );
         }
 

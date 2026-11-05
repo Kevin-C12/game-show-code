@@ -18,7 +18,8 @@ public class GameEngine {
     public enum Result {
         CORRECT,
         WRONG,
-        THREE_STRIKES
+        THREE_STRIKES,
+        STEAL_FAILED
     }
 
     // Game state
@@ -27,6 +28,12 @@ public class GameEngine {
     // Current question
     private int[] numbers;
     private int[] correctAnswer;
+    private static final String[] SORTS = {
+        "insertionSort", "selectionSort", "mergeSort"
+    };
+    private int roundNumber = 0;
+    private String sortType;
+    private boolean stealAttempt = false;
 
     // Timer and buzzer state
     private int secondsLeft = 30;
@@ -49,9 +56,20 @@ public class GameEngine {
     // Start a new question
     public void startQuestion() throws IOException {
 
+        if (playing) {
+            throw new IllegalStateException("Finish the current round first");
+        }
+
+        String nextSort = SORTS[roundNumber % SORTS.length];
+
         // Generate question JSON
         try {
-            InsertionSort.run();
+            switch (nextSort) {
+                case "insertionSort" -> InsertionSort.run();
+                case "selectionSort" -> SelectionSort.run();
+                case "mergeSort" -> MergeSort.run();
+                default -> throw new IllegalStateException("Unknown sort: " + nextSort);
+            }
         } catch (Exception e) {
             throw new IOException("Could not generate question", e);
         }
@@ -66,9 +84,9 @@ public class GameEngine {
         try (Stream<Path> files = Files.list(folder)) {
             newest = files
                 .filter(p -> p.getFileName().toString()
-                    .matches("insertionSort\\d+\\.json"))
+                    .matches(nextSort + "\\d+\\.json"))
                 .max(Comparator.comparingInt(
-                    this::getQuestionNumber
+                    p -> getQuestionNumber(p, nextSort)
                 ))
                 .orElseThrow(() ->
                     new IOException("No questions found")
@@ -88,11 +106,10 @@ public class GameEngine {
 
         numbers = toArray(original);
         correctAnswer = toArray(expected);
-
-        // A team with three strikes starts fresh
-        if (state.getStrikes() >= 3) {
-            state.resetStrikes();
-        }
+        sortType = nextSort;
+        roundNumber++;
+        stealAttempt = false;
+        state.startRound();
 
         resetRound();
     }
@@ -107,8 +124,12 @@ public class GameEngine {
         numbers = demoArray.clone();
         correctAnswer = demoArray.clone();
 
-        // Calculate the first insertion sort step
-        if (correctAnswer.length > 1) {
+        // Calculate the first step of the current round's sort.
+        if ("selectionSort".equals(sortType)) {
+            correctAnswer = SelectionSort.firstStep(demoArray);
+        } else if ("mergeSort".equals(sortType)) {
+            correctAnswer = MergeSort.firstStep(demoArray);
+        } else if (correctAnswer.length > 1) {
             int key = correctAnswer[1];
             int j = 0;
 
@@ -131,8 +152,14 @@ public class GameEngine {
     }
 
     // Activate buzzer, only once per attempt
-    public boolean buzz() {
+    public boolean buzz(int team) {
         if (!playing || buzzed) {
+            return false;
+        }
+
+        if (state.getCurrentTeam() == 0) {
+            state.setCurrentTeam(team);
+        } else if (state.getCurrentTeam() != team) {
             return false;
         }
 
@@ -166,9 +193,15 @@ public class GameEngine {
 
         state.addStrike();
 
-        if (state.getStrikes() >= 3) {
+        if (stealAttempt) {
             playing = false;
+            return Result.STEAL_FAILED;
+        }
+
+        if (state.getStrikes() >= 3) {
             state.switchTeam();
+            stealAttempt = true;
+            resetRound();
 
             return Result.THREE_STRIKES;
         }
@@ -181,7 +214,7 @@ public class GameEngine {
     // Timer countdown
     public boolean tick() {
 
-        if (!playing) {
+        if (!playing || !buzzed) {
             return false;
         }
 
@@ -192,19 +225,13 @@ public class GameEngine {
 
     // Time running out counts as a strike
     public Result timeExpired() {
-        if (!playing) {
+        if (!playing || !buzzed) {
             throw new IllegalStateException(
                 "No active question"
             );
         }
 
         return recordStrike();
-    }
-
-    // Pass to the other team
-    public void passTurn() {
-        playing = false;
-        state.switchTeam();
     }
 
     // Convert JSON arrays to Java arrays
@@ -219,13 +246,13 @@ public class GameEngine {
         return array;
     }
 
-    // Extract number from insertionSortN.json
-    private int getQuestionNumber(Path file) {
+    // Extract the number from a generated sort question filename.
+    private int getQuestionNumber(Path file, String type) {
 
         String name = file.getFileName().toString();
 
         return Integer.parseInt(
-            name.replace("insertionSort", "")
+            name.replace(type, "")
                 .replace(".json", "")
         );
     }
@@ -234,6 +261,33 @@ public class GameEngine {
 
     public int[] getNumbers() {
         return numbers == null ? new int[0] : numbers.clone();
+    }
+
+    public int getRoundNumber() {
+        return roundNumber;
+    }
+
+    public String getSortName() {
+        if ("selectionSort".equals(sortType)) {
+            return "selection sort";
+        }
+        return "mergeSort".equals(sortType) ? "merge sort" : "insertion sort";
+    }
+
+    public String getNextSortName() {
+        return switch (SORTS[roundNumber % SORTS.length]) {
+            case "selectionSort" -> "selection sort";
+            case "mergeSort" -> "merge sort";
+            default -> "insertion sort";
+        };
+    }
+
+    public boolean isStealAttempt() {
+        return stealAttempt;
+    }
+
+    public int getRoundStrikes() {
+        return Math.max(state.getTeam1Strikes(), state.getTeam2Strikes());
     }
 
     public int getSecondsLeft() {

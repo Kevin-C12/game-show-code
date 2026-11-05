@@ -29,3 +29,5 @@ Round One: Sort Challenge
 4. Players must answer the questions correctly to earn points toward the final prize.
 5. The team must reach the required score to win the prize.
 
+# Runnning the code
+mvn clean javafx:run

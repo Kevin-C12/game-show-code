@@ -1,17 +1,24 @@
 
 package com.example;
 
+import com.github.kwhat.jnativehook.GlobalScreen;
+import com.github.kwhat.jnativehook.NativeHookException;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
+import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import javafx.animation.KeyFrame;
 import javafx.animation.PauseTransition;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextField;
+import javafx.scene.control.TextFormatter;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.StackPane;
@@ -23,6 +30,8 @@ import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class App extends Application {
 
@@ -39,6 +48,7 @@ public class App extends Application {
     private Label timerLabel;
     private Label strikeLabel;
     private Label landingMessage;
+    private Label rulesLabel;
 
     // Game controls
     private HBox numberBoxes;
@@ -57,7 +67,11 @@ public class App extends Application {
     private Timeline timer;
     private PauseTransition feedbackTimer;
 
-    private boolean spaceHeld = false;
+    private final Set<Integer> heldShiftKeys = ConcurrentHashMap.newKeySet();
+    private Stage gameStage;
+    private boolean nativeHookRegistered = false;
+    private boolean leftShiftDown = false;
+    private boolean rightShiftDown = false;
     private boolean showingFeedback = false;
     private boolean devToolsOpen = false;
 
@@ -66,6 +80,8 @@ public class App extends Application {
 
     @Override
     public void start(Stage stage) {
+
+        gameStage = stage;
 
         root = new BorderPane();
 
@@ -135,27 +151,6 @@ public class App extends Application {
 
         Scene scene = new Scene(layout, 1000, 650);
 
-        // Teams can buzz with the number keys.
-        scene.setOnKeyPressed(e -> {
-
-            if ((e.getCode() == KeyCode.DIGIT1 || e.getCode() == KeyCode.DIGIT2)
-                    && !spaceHeld
-                    && !showingFeedback
-                    && engine.isPlaying()
-                    && !engine.isBuzzed()) {
-
-                spaceHeld = true;
-                buzz(e.getCode() == KeyCode.DIGIT1 ? 1 : 2);
-                e.consume();
-            }
-        });
-
-        scene.setOnKeyReleased(e -> {
-            if (e.getCode() == KeyCode.DIGIT1 || e.getCode() == KeyCode.DIGIT2) {
-                spaceHeld = false;
-            }
-        });
-
         scene.getStylesheets().add(
             getClass().getResource("/styles.css")
                 .toExternalForm()
@@ -164,6 +159,108 @@ public class App extends Application {
         stage.setTitle("Sort Feud");
         stage.setScene(scene);
         stage.show();
+        registerShiftBuzzers(scene);
+    }
+
+    private final NativeKeyListener shiftListener = new NativeKeyListener() {
+        @Override
+        public void nativeKeyPressed(NativeKeyEvent event) {
+            if (event.getKeyCode() != NativeKeyEvent.VC_SHIFT) {
+                return;
+            }
+
+            int location = event.getKeyLocation();
+            int team = location == NativeKeyEvent.KEY_LOCATION_LEFT ? 1
+                : location == NativeKeyEvent.KEY_LOCATION_RIGHT ? 2 : 0;
+            if (team == 0 || !heldShiftKeys.add(location)) {
+                return;
+            }
+
+            Platform.runLater(() -> {
+                if (gameStage.isFocused() && root.getCenter() == gamePage) {
+                    buzz(team);
+                }
+            });
+        }
+
+        @Override
+        public void nativeKeyReleased(NativeKeyEvent event) {
+            if (event.getKeyCode() == NativeKeyEvent.VC_SHIFT) {
+                heldShiftKeys.remove(event.getKeyLocation());
+            }
+        }
+    };
+
+    private void registerShiftBuzzers(Scene scene) {
+        if (System.getProperty("os.name", "").startsWith("Mac")) {
+            try {
+                leftShiftDown = MacShiftKeys.leftDown();
+                rightShiftDown = MacShiftKeys.rightDown();
+                scene.addEventFilter(KeyEvent.KEY_PRESSED, event -> {
+                    if (event.getCode() == KeyCode.SHIFT) {
+                        handleMacShiftPressed();
+                    }
+                });
+                scene.addEventFilter(KeyEvent.KEY_RELEASED, event -> {
+                    if (event.getCode() == KeyCode.SHIFT) {
+                        leftShiftDown = MacShiftKeys.leftDown();
+                        rightShiftDown = MacShiftKeys.rightDown();
+                    }
+                });
+                gameStage.focusedProperty().addListener((observable, oldValue, focused) -> {
+                    if (!focused) {
+                        leftShiftDown = false;
+                        rightShiftDown = false;
+                    }
+                });
+                return;
+            } catch (LinkageError | RuntimeException e) {
+                System.err.println("Mac Shift buzzers unavailable: " + e.getMessage());
+                showKeyboardFallback();
+                return;
+            }
+        }
+
+        try {
+            GlobalScreen.registerNativeHook();
+            GlobalScreen.addNativeKeyListener(shiftListener);
+            nativeHookRegistered = true;
+        } catch (NativeHookException | UnsatisfiedLinkError e) {
+            System.err.println("Shift buzzers unavailable; use the on-screen buttons: "
+                + e.getMessage());
+            showKeyboardFallback();
+        }
+    }
+
+    private void handleMacShiftPressed() {
+        boolean leftNow = MacShiftKeys.leftDown();
+        boolean rightNow = MacShiftKeys.rightDown();
+        int team = leftNow && !leftShiftDown ? 1
+            : rightNow && !rightShiftDown ? 2 : 0;
+        leftShiftDown = leftNow;
+        rightShiftDown = rightNow;
+        if (team != 0 && gameStage.isFocused() && root.getCenter() == gamePage) {
+            buzz(team);
+        }
+    }
+
+    private void showKeyboardFallback() {
+        rulesLabel.setText("Keyboard buzzers are unavailable. Click a team buzzer. "
+            + "Three strikes give the other team one steal chance. "
+            + "Complete the sort to earn 10 points.");
+    }
+
+    @Override
+    public void stop() {
+        if (nativeHookRegistered) {
+            GlobalScreen.removeNativeKeyListener(shiftListener);
+            try {
+                GlobalScreen.unregisterNativeHook();
+            } catch (NativeHookException e) {
+                System.err.println("Could not release keyboard listener: "
+                    + e.getMessage());
+            }
+        }
     }
 
     // Landing page
@@ -175,13 +272,14 @@ public class App extends Application {
         landingMessage = new Label();
         landingMessage.getStyleClass().add("question-label");
 
-        Label rules = new Label(
-            "Press 1 or 2 to buzz. Three strikes give the other team one steal chance. "
-            + "A correct answer earns 10 points."
+        rulesLabel = new Label(
+            "Left Shift buzzes for Team 1; Right Shift buzzes for Team 2. "
+            + "You can also click a buzzer. Three strikes give the other team one steal chance. "
+            + "Complete the sort to earn 10 points."
         );
-        rules.getStyleClass().add("rules-label");
-        rules.setWrapText(true);
-        rules.setMaxWidth(650);
+        rulesLabel.getStyleClass().add("rules-label");
+        rulesLabel.setWrapText(true);
+        rulesLabel.setMaxWidth(650);
 
         Button startButton = new Button("Start Round");
         startButton.getStyleClass().add("submit-button");
@@ -189,7 +287,7 @@ public class App extends Application {
         startButton.setOnAction(e -> startQuestion());
 
         landingPage.getChildren().addAll(
-            landingMessage, rules, startButton
+            landingMessage, rulesLabel, startButton
         );
     }
 
@@ -205,8 +303,10 @@ public class App extends Application {
         numberBoxes = new HBox(10);
         numberBoxes.setAlignment(Pos.CENTER);
 
-        team1Buzzer = new Button("TEAM 1\nBUZZ (1)");
-        team2Buzzer = new Button("TEAM 2\nBUZZ (2)");
+        team1Buzzer = new Button("Team 1");
+        team2Buzzer = new Button("Team 2");
+        team1Buzzer.getStyleClass().add("team-one");
+        team2Buzzer.getStyleClass().add("team-two");
         for (Button button : new Button[] {team1Buzzer, team2Buzzer}) {
             button.getStyleClass().add("buzzer");
             button.setFocusTraversable(false);
@@ -251,14 +351,14 @@ public class App extends Application {
             + LocalTime.now().format(formatter));
 
         Button selected = team == 1 ? team1Buzzer : team2Buzzer;
-        selected.setText("BUZZED!");
         selected.getStyleClass().add("buzzer-activated");
         team1Buzzer.setDisable(true);
         team2Buzzer.setDisable(true);
 
         setShown(answerBoxes, true);
         setShown(submitButton, true);
-        resultLabel.setText("Team " + team + ", enter your answer.");
+        resultLabel.setText("Team " + team + ", enter step "
+            + engine.getCurrentStepNumber() + " of " + engine.getTotalSteps() + ".");
         updateHeader();
         timer.playFromStart();
 
@@ -275,9 +375,11 @@ public class App extends Application {
 
             displayNumbers();
             resetAnswerUI();
-            instruction.setText("Round " + engine.getRoundNumber()
-                + ": What is the array after Step 1 of "
-                + engine.getSortName() + "?");
+            instruction.setText(
+                "Round " + engine.getRoundNumber() +
+                " • " + engine.getSortName().toUpperCase() +
+                "\nWhat is the next step?"
+            );
 
             root.setCenter(gamePage);
             updateHeader();
@@ -295,24 +397,68 @@ public class App extends Application {
         answerBoxes.getChildren().clear();
         answerFields.clear();
 
-        for (int number : engine.getNumbers()) {
+        int[] numbers = engine.getNumbers();
+
+        for (int i = 0; i < numbers.length; i++) {
 
             Label label = new Label(
-                String.valueOf(number)
+                String.valueOf(numbers[i])
             );
             label.getStyleClass().add("number-box");
 
             numberBoxes.getChildren().add(label);
 
             TextField field = new TextField();
-            field.setPromptText("?");
-            field.setPrefWidth(65);
+            field.setPromptText("–");
+            field.setPrefWidth(68);
             field.setAlignment(Pos.CENTER);
             field.getStyleClass().add("answer-box");
 
             answerFields.add(field);
             answerBoxes.getChildren().add(field);
         }
+
+        for (int i = 0; i < answerFields.size(); i++) {
+            setupAutoAdvance(answerFields.get(i), i);
+        }
+    }
+
+    private void setupAutoAdvance(TextField field, int index) {
+        field.setOnAction(e -> submitAnswer());
+
+        field.setTextFormatter(new TextFormatter<String>(change ->
+            change.getControlNewText().matches("\\d{0,2}") ? change : null
+        ));
+
+        PauseTransition advanceDelay = new PauseTransition(Duration.millis(450));
+        advanceDelay.setOnFinished(e -> {
+            if (field.isFocused() && !field.getText().isEmpty()
+                    && index < answerFields.size() - 1) {
+                answerFields.get(index + 1).requestFocus();
+            }
+        });
+
+        field.textProperty().addListener((observable, oldValue, newValue) -> {
+            advanceDelay.stop();
+            if (newValue.isEmpty() || index == answerFields.size() - 1) {
+                return;
+            }
+            if (newValue.length() == 2) {
+                if (field.isFocused()) {
+                    answerFields.get(index + 1).requestFocus();
+                }
+            } else {
+                advanceDelay.playFromStart();
+            }
+        });
+
+        field.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.BACK_SPACE
+                    && field.getText().isEmpty() && index > 0) {
+                answerFields.get(index - 1).requestFocus();
+                e.consume();
+            }
+        });
     }
 
     // Submit player's answer
@@ -354,8 +500,8 @@ public class App extends Application {
         timer.stop();
         submitButton.setDisable(true);
 
-        boolean correct =
-            result == GameEngine.Result.CORRECT;
+        boolean correct = result == GameEngine.Result.CORRECT
+            || result == GameEngine.Result.STEP_CORRECT;
 
         feedbackSymbol.setText(correct ? "✓" : "✕");
         feedbackSymbol.setStyle(
@@ -378,6 +524,15 @@ public class App extends Application {
             showingFeedback = false;
 
             switch (result) {
+
+                case STEP_CORRECT:
+                    displayNumbers();
+                    resetAnswerUI();
+                    resultLabel.setText("Correct! Step "
+                        + engine.getCurrentStepNumber() + " of "
+                        + engine.getTotalSteps() + " is next.");
+                    updateHeader();
+                    break;
 
                 case CORRECT:
                     showLanding(
@@ -414,10 +569,8 @@ public class App extends Application {
     // Reset buzzer and answer fields
     private void resetAnswerUI() {
 
-        spaceHeld = false;
-
-        team1Buzzer.setText("TEAM 1\nBUZZ (1)");
-        team2Buzzer.setText("TEAM 2\nBUZZ (2)");
+        team1Buzzer.setText("Team 1");
+        team2Buzzer.setText("Team 2");
         team1Buzzer.getStyleClass().remove("buzzer-activated");
         team2Buzzer.getStyleClass().remove("buzzer-activated");
         team1Buzzer.setDisable(engine.getCurrentTeam() == 2);
@@ -428,6 +581,7 @@ public class App extends Application {
 
         submitButton.setDisable(false);
         resultLabel.setText("");
+        resultLabel.setStyle("");
 
         for (TextField field : answerFields) {
             field.clear();

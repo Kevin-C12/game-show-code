@@ -21,10 +21,7 @@ public class MergeSort {
         }
 
         int[] original = arr.clone();
-        Map<String, int[]> steps = new LinkedHashMap<>();
-
-        // Record the whole array after each completed merge.
-        mergeSort(arr, new int[arr.length], 0, arr.length, steps);
+        Map<String, int[]> steps = stepsFor(arr);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("sort", "mergeSort");
@@ -51,11 +48,15 @@ public class MergeSort {
         System.out.println("Saved to: " + file);
     }
 
-    static int[] firstStep(int[] input) {
+    public static int[] firstStep(int[] input) {
+        return stepsFor(input).getOrDefault("step1", input.clone());
+    }
+
+    static Map<String, int[]> stepsFor(int[] input) {
         int[] result = input.clone();
         Map<String, int[]> steps = new LinkedHashMap<>();
         mergeSort(result, new int[result.length], 0, result.length, steps);
-        return steps.getOrDefault("step1", result);
+        return steps;
     }
 
     private static void mergeSort(int[] arr, int[] temp, int start, int end,

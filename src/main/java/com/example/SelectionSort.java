@@ -21,23 +21,7 @@ public class SelectionSort {
         }
 
         int[] original = arr.clone();
-        Map<String, int[]> steps = new LinkedHashMap<>();
-
-        // Each pass selects the smallest remaining value and puts it in place.
-        for (int i = 0; i < arr.length - 1; i++) {
-            int smallest = i;
-
-            for (int j = i + 1; j < arr.length; j++) {
-                if (arr[j] < arr[smallest]) {
-                    smallest = j;
-                }
-            }
-
-            int temp = arr[i];
-            arr[i] = arr[smallest];
-            arr[smallest] = temp;
-            steps.put("step" + (i + 1), arr.clone());
-        }
+        Map<String, int[]> steps = stepsFor(arr);
 
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("sort", "selectionSort");
@@ -64,20 +48,30 @@ public class SelectionSort {
         System.out.println("Saved to: " + file);
     }
 
-    static int[] firstStep(int[] input) {
-        int[] result = input.clone();
-        if (result.length < 2) {
-            return result;
-        }
-        int smallest = 0;
-        for (int i = 1; i < result.length; i++) {
-            if (result[i] < result[smallest]) {
-                smallest = i;
+    static Map<String, int[]> stepsFor(int[] input) {
+        int[] arr = input.clone();
+        Map<String, int[]> steps = new LinkedHashMap<>();
+
+        // Each pass selects the smallest remaining value and puts it in place.
+        for (int i = 0; i < arr.length - 1; i++) {
+            int smallest = i;
+
+            for (int j = i + 1; j < arr.length; j++) {
+                if (arr[j] < arr[smallest]) {
+                    smallest = j;
+                }
             }
+
+            int temp = arr[i];
+            arr[i] = arr[smallest];
+            arr[smallest] = temp;
+            steps.put("step" + (i + 1), arr.clone());
         }
-        int temp = result[0];
-        result[0] = result[smallest];
-        result[smallest] = temp;
-        return result;
+
+        return steps;
+    }
+
+    static int[] firstStep(int[] input) {
+        return stepsFor(input).getOrDefault("step1", input.clone());
     }
 }

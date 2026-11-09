@@ -8,14 +8,17 @@ import com.google.gson.JsonParser;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.stream.Stream;
 
 public class GameEngine {
 
     // Possible answer results
     public enum Result {
+        STEP_CORRECT,
         CORRECT,
         WRONG,
         THREE_STRIKES,
@@ -27,7 +30,8 @@ public class GameEngine {
 
     // Current question
     private int[] numbers;
-    private int[] correctAnswer;
+    private List<int[]> steps = List.of();
+    private int stepIndex = 0;
     private static final String[] SORTS = {
         "insertionSort", "selectionSort", "mergeSort"
     };
@@ -100,12 +104,22 @@ public class GameEngine {
         JsonArray original =
             question.getAsJsonArray("unOrderedList");
 
-        JsonArray expected = question
-            .getAsJsonObject("sortSteps")
-            .getAsJsonArray("step1");
+        JsonObject savedSteps = question.getAsJsonObject("sortSteps");
+        List<int[]> loadedSteps = new ArrayList<>();
+        for (int i = 1; i <= savedSteps.size(); i++) {
+            JsonArray step = savedSteps.getAsJsonArray("step" + i);
+            if (step == null) {
+                throw new IOException("Missing sort step " + i);
+            }
+            loadedSteps.add(toArray(step));
+        }
+        if (loadedSteps.isEmpty()) {
+            throw new IOException("Question has no sorting steps");
+        }
 
         numbers = toArray(original);
-        correctAnswer = toArray(expected);
+        steps = loadedSteps;
+        stepIndex = 0;
         sortType = nextSort;
         roundNumber++;
         stealAttempt = false;
@@ -122,24 +136,12 @@ public class GameEngine {
         }
 
         numbers = demoArray.clone();
-        correctAnswer = demoArray.clone();
-
-        // Calculate the first step of the current round's sort.
-        if ("selectionSort".equals(sortType)) {
-            correctAnswer = SelectionSort.firstStep(demoArray);
-        } else if ("mergeSort".equals(sortType)) {
-            correctAnswer = MergeSort.firstStep(demoArray);
-        } else if (correctAnswer.length > 1) {
-            int key = correctAnswer[1];
-            int j = 0;
-
-            while (j >= 0 && correctAnswer[j] > key) {
-                correctAnswer[j + 1] = correctAnswer[j];
-                j--;
-            }
-
-            correctAnswer[j + 1] = key;
-        }
+        steps = new ArrayList<>(switch (sortType) {
+            case "selectionSort" -> SelectionSort.stepsFor(demoArray).values();
+            case "mergeSort" -> MergeSort.stepsFor(demoArray).values();
+            default -> InsertionSort.stepsFor(demoArray).values();
+        });
+        stepIndex = 0;
 
         resetRound();
     }
@@ -176,13 +178,18 @@ public class GameEngine {
             );
         }
 
-        if (Arrays.equals(answer, correctAnswer)) {
+        if (Arrays.equals(answer, steps.get(stepIndex))) {
+            numbers = steps.get(stepIndex).clone();
+            if (stealAttempt || stepIndex == steps.size() - 1) {
+                state.addPoints(10);
+                state.resetStrikes();
+                playing = false;
+                return Result.CORRECT;
+            }
 
-            state.addPoints(10);
-            state.resetStrikes();
-            playing = false;
-
-            return Result.CORRECT;
+            stepIndex++;
+            resetRound();
+            return Result.STEP_CORRECT;
         }
 
         return recordStrike();
@@ -265,6 +272,14 @@ public class GameEngine {
 
     public int getRoundNumber() {
         return roundNumber;
+    }
+
+    public int getCurrentStepNumber() {
+        return stepIndex + 1;
+    }
+
+    public int getTotalSteps() {
+        return steps.size();
     }
 
     public String getSortName() {

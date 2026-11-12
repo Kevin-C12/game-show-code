@@ -1,50 +1,48 @@
-
 package com.example;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
-import java.util.stream.Stream;
+import java.util.Random;
 
 public class GameEngine {
 
-    // Possible answer results
+    private static final int ANSWER_SECONDS = 20;
+
     public enum Result {
         STEP_CORRECT,
         CORRECT,
         WRONG,
-        THREE_STRIKES,
-        STEAL_FAILED
+        MATCH_WON,
+        MATCH_FORFEITED
     }
 
-    // Game state
     private final GameState state = new GameState();
-
-    // Current question
+    private final List<Integer> dotWinners = new ArrayList<>();
+    private TeamRoster teamOne = new TeamRoster("Team 1", List.of("Player 1"));
+    private TeamRoster teamTwo = new TeamRoster("Team 2", List.of("Player 2"));
+    private MatchupScheduler matchupScheduler =
+        new MatchupScheduler(teamOne, teamTwo, new Random());
+    private Matchup currentMatchup = matchupScheduler.next();
+    private Random random = new Random();
+    private SeriesController series = new SeriesController(random);
     private int[] numbers;
     private List<int[]> steps = List.of();
-    private int stepIndex = 0;
-    private static final String[] SORTS = {
-        "insertionSort", "selectionSort", "mergeSort"
-    };
-    private int roundNumber = 0;
+    private int stepIndex;
+    private boolean randomTargetStep;
     private String sortType;
-    private boolean stealAttempt = false;
+    private int secondsLeft = ANSWER_SECONDS;
+    private boolean buzzed;
+    private boolean playing;
+    private int lastAnswerTeam;
 
-    // Timer and buzzer state
-    private int secondsLeft = 30;
-    private boolean buzzed = false;
-    private boolean playing = false;
-
-    // Demo arrays
     public static final int[] SORTED_DEMO = {
         7, 15, 29, 42, 61, 83
     };
@@ -57,221 +55,240 @@ public class GameEngine {
         83, 61, 42, 29, 15, 7
     };
 
-    // Start a new question
     public void startQuestion() throws IOException {
-
         if (playing) {
             throw new IllegalStateException("Finish the current round first");
         }
+        if (series.isRoundComplete()) {
+            throw new IllegalStateException("Advance to the next round first");
+        }
 
-        String nextSort = SORTS[roundNumber % SORTS.length];
-
-        // Generate question JSON
+        QuestionRequest request = series.nextQuestion();
+        String nextSort = request.sortId();
+        Path questionFile;
         try {
-            switch (nextSort) {
-                case "insertionSort" -> InsertionSort.run();
-                case "selectionSort" -> SelectionSort.run();
-                case "mergeSort" -> MergeSort.run();
-                default -> throw new IllegalStateException("Unknown sort: " + nextSort);
-            }
-        } catch (Exception e) {
-            throw new IOException("Could not generate question", e);
+            questionFile = switch (nextSort) {
+                case InsertionSort.SORT_ID -> InsertionSort.run();
+                case SelectionSort.SORT_ID -> SelectionSort.run();
+                case MergeSort.SORT_ID -> MergeSort.run();
+                default -> throw new IllegalStateException(
+                    "Unknown sort: " + nextSort);
+            };
+        } catch (Exception exception) {
+            throw new IOException("Could not generate question", exception);
         }
 
-        Path folder = Path.of(
-            "src/main/java/com/example/json"
-        );
+        loadQuestion(questionFile, nextSort, request.randomTargetStep());
+    }
 
-        // Find newest numbered JSON file
-        Path newest;
+    void loadQuestion(Path questionFile, String expectedSort) throws IOException {
+        loadQuestion(questionFile, expectedSort, false);
+    }
 
-        try (Stream<Path> files = Files.list(folder)) {
-            newest = files
-                .filter(p -> p.getFileName().toString()
-                    .matches(nextSort + "\\d+\\.json"))
-                .max(Comparator.comparingInt(
-                    p -> getQuestionNumber(p, nextSort)
-                ))
-                .orElseThrow(() ->
-                    new IOException("No questions found")
-                );
+    void loadQuestion(Path questionFile, String expectedSort,
+                      boolean useRandomTargetStep) throws IOException {
+        JsonObject question;
+        try {
+            question = JsonParser.parseString(Files.readString(questionFile))
+                .getAsJsonObject();
+        } catch (RuntimeException exception) {
+            throw new IOException("Question JSON is invalid", exception);
         }
 
-        JsonObject question = JsonParser
-            .parseString(Files.readString(newest))
-            .getAsJsonObject();
+        if (!question.has("sort")
+                || !expectedSort.equals(question.get("sort").getAsString())) {
+            throw new IOException("Question sort does not match " + expectedSort);
+        }
+        if (!question.has("unOrderedList") || !question.has("sortSteps")) {
+            throw new IOException("Question is missing required fields");
+        }
 
-        JsonArray original =
-            question.getAsJsonArray("unOrderedList");
-
+        int[] original = toArray(question.getAsJsonArray("unOrderedList"));
         JsonObject savedSteps = question.getAsJsonObject("sortSteps");
         List<int[]> loadedSteps = new ArrayList<>();
-        for (int i = 1; i <= savedSteps.size(); i++) {
-            JsonArray step = savedSteps.getAsJsonArray("step" + i);
-            if (step == null) {
-                throw new IOException("Missing sort step " + i);
+        for (int index = 1; index <= savedSteps.size(); index++) {
+            JsonArray savedStep = savedSteps.getAsJsonArray("step" + index);
+            if (savedStep == null) {
+                throw new IOException("Missing sort step " + index);
             }
-            loadedSteps.add(toArray(step));
+            int[] step = toArray(savedStep);
+            if (step.length != original.length) {
+                throw new IOException("Sort step " + index + " has the wrong length");
+            }
+            loadedSteps.add(step);
         }
         if (loadedSteps.isEmpty()) {
             throw new IOException("Question has no sorting steps");
         }
 
-        numbers = toArray(original);
-        steps = loadedSteps;
-        stepIndex = 0;
-        sortType = nextSort;
-        roundNumber++;
-        stealAttempt = false;
-        state.startRound();
-
-        resetRound();
+        numbers = original;
+        steps = List.copyOf(loadedSteps);
+        randomTargetStep = useRandomTargetStep;
+        stepIndex = useRandomTargetStep ? random.nextInt(steps.size()) : 0;
+        sortType = expectedSort;
+        openBuzzers(false);
     }
 
-    // Load a developer test question
-    public void loadDemoQuestion(int[] demoArray) {
-
+    public boolean loadDemoQuestion(int[] demoArray) {
         if (!playing) {
-            return;
+            return false;
         }
 
-        numbers = demoArray.clone();
-        steps = new ArrayList<>(switch (sortType) {
-            case "selectionSort" -> SelectionSort.stepsFor(demoArray).values();
-            case "mergeSort" -> MergeSort.stepsFor(demoArray).values();
+        List<int[]> demoSteps = new ArrayList<>(switch (sortType) {
+            case SelectionSort.SORT_ID -> SelectionSort.stepsFor(demoArray).values();
+            case MergeSort.SORT_ID -> MergeSort.stepsFor(demoArray).values();
             default -> InsertionSort.stepsFor(demoArray).values();
         });
-        stepIndex = 0;
-
-        resetRound();
+        if (demoSteps.isEmpty()) {
+            return false;
+        }
+        numbers = demoArray.clone();
+        steps = List.copyOf(demoSteps);
+        stepIndex = randomTargetStep ? random.nextInt(steps.size()) : 0;
+        openBuzzers(false);
+        return true;
     }
 
-    // Reset timer and buzzer for another attempt
-    private void resetRound() {
-        secondsLeft = 30;
+    private void openBuzzers(boolean rotateMatchup) {
+        if (rotateMatchup) {
+            currentMatchup = matchupScheduler.next();
+        }
+        state.clearCurrentPlayer();
+        secondsLeft = ANSWER_SECONDS;
         buzzed = false;
         playing = true;
     }
 
-    // Activate buzzer, only once per attempt
-    public boolean buzz(int team) {
-        if (!playing || buzzed) {
+    public boolean buzz(int player) {
+        if (!playing || buzzed || (player != 1 && player != 2)) {
             return false;
         }
 
-        if (state.getCurrentTeam() == 0) {
-            state.setCurrentTeam(team);
-        } else if (state.getCurrentTeam() != team) {
-            return false;
-        }
-
+        state.setCurrentPlayer(player);
         buzzed = true;
         return true;
     }
 
-    // Check player answers
     public Result submitAnswer(int[] answer) {
-
         if (!playing || !buzzed) {
             throw new IllegalStateException(
-                "Question is not ready for submission"
-            );
+                "Question is not ready for submission");
         }
 
-        if (Arrays.equals(answer, steps.get(stepIndex))) {
-            numbers = steps.get(stepIndex).clone();
-            if (stealAttempt || stepIndex == steps.size() - 1) {
-                state.addPoints(10);
-                state.resetStrikes();
-                playing = false;
-                return Result.CORRECT;
-            }
+        lastAnswerTeam = state.getCurrentPlayer();
+        if (!Arrays.equals(answer, steps.get(stepIndex))) {
+            return resolveWrong();
+        }
 
-            stepIndex++;
-            resetRound();
+        state.recordCorrect();
+        dotWinners.add(lastAnswerTeam);
+        numbers = steps.get(stepIndex).clone();
+        if (state.isMatchOver()) {
+            finishRound();
+            playing = false;
+            return Result.MATCH_WON;
+        }
+
+        if (!randomTargetStep && advanceStep()) {
+            openBuzzers(true);
             return Result.STEP_CORRECT;
         }
 
-        return recordStrike();
+        currentMatchup = matchupScheduler.next();
+        playing = false;
+        return Result.CORRECT;
     }
 
-    // Add a strike and determine next turn
-    private Result recordStrike() {
-
-        state.addStrike();
-
-        if (stealAttempt) {
-            playing = false;
-            return Result.STEAL_FAILED;
-        }
-
-        if (state.getStrikes() >= 3) {
-            state.switchTeam();
-            stealAttempt = true;
-            resetRound();
-
-            return Result.THREE_STRIKES;
-        }
-
-        // Keep same question for another attempt
-        resetRound();
-        return Result.WRONG;
-    }
-
-    // Timer countdown
     public boolean tick() {
-
         if (!playing || !buzzed) {
             return false;
         }
-
         secondsLeft = Math.max(0, secondsLeft - 1);
-
         return secondsLeft == 0;
     }
 
-    // Time running out counts as a strike
     public Result timeExpired() {
         if (!playing || !buzzed) {
-            throw new IllegalStateException(
-                "No active question"
-            );
+            throw new IllegalStateException("No active question");
         }
-
-        return recordStrike();
+        lastAnswerTeam = state.getCurrentPlayer();
+        return resolveWrong();
     }
 
-    // Convert JSON arrays to Java arrays
-    private int[] toArray(JsonArray json) {
-
-        int[] array = new int[json.size()];
-
-        for (int i = 0; i < json.size(); i++) {
-            array[i] = json.get(i).getAsInt();
+    private Result resolveWrong() {
+        state.recordWrong();
+        numbers = steps.get(stepIndex).clone();
+        if (state.isMatchOver()) {
+            finishRound();
+            playing = false;
+            return Result.MATCH_FORFEITED;
         }
 
+        if (!randomTargetStep && advanceStep()) {
+            openBuzzers(true);
+        } else {
+            currentMatchup = matchupScheduler.next();
+            playing = false;
+        }
+        return Result.WRONG;
+    }
+
+    private void finishRound() {
+        if (!series.isRoundComplete()) {
+            series.recordRoundWinner(state.getWinner());
+        }
+    }
+
+    private boolean advanceStep() {
+        if (stepIndex >= steps.size() - 1) {
+            return false;
+        }
+        stepIndex++;
+        return true;
+    }
+
+    public void configureMatch(
+            TeamRoster firstTeam, TeamRoster secondTeam, Random random) {
+        teamOne = firstTeam;
+        teamTwo = secondTeam;
+        matchupScheduler = new MatchupScheduler(firstTeam, secondTeam, random);
+        this.random = random;
+        series = new SeriesController(random);
+        currentMatchup = matchupScheduler.next();
+        state.resetMatch();
+        dotWinners.clear();
+        numbers = null;
+        steps = List.of();
+        stepIndex = 0;
+        randomTargetStep = false;
+        sortType = null;
+        secondsLeft = ANSWER_SECONDS;
+        buzzed = false;
+        playing = false;
+        lastAnswerTeam = 0;
+    }
+
+    private int[] toArray(JsonArray json) throws IOException {
+        if (json == null) {
+            throw new IOException("Expected an array");
+        }
+        int[] array = new int[json.size()];
+        try {
+            for (int index = 0; index < json.size(); index++) {
+                array[index] = json.get(index).getAsInt();
+            }
+        } catch (RuntimeException exception) {
+            throw new IOException("Question arrays must contain integers", exception);
+        }
         return array;
     }
-
-    // Extract the number from a generated sort question filename.
-    private int getQuestionNumber(Path file, String type) {
-
-        String name = file.getFileName().toString();
-
-        return Integer.parseInt(
-            name.replace(type, "")
-                .replace(".json", "")
-        );
-    }
-
-    // Getters used by App.java
 
     public int[] getNumbers() {
         return numbers == null ? new int[0] : numbers.clone();
     }
 
     public int getRoundNumber() {
-        return roundNumber;
+        return series.getCurrentRound();
     }
 
     public int getCurrentStepNumber() {
@@ -282,55 +299,122 @@ public class GameEngine {
         return steps.size();
     }
 
+    public String getArrayStageLabel() {
+        return ArrayStageLabel.forQuestion(
+            series.getCurrentRound(), getCurrentStepNumber());
+    }
+
     public String getSortName() {
-        if ("selectionSort".equals(sortType)) {
-            return "selection sort";
-        }
-        return "mergeSort".equals(sortType) ? "merge sort" : "insertion sort";
+        return displayName(sortType);
     }
 
     public String getNextSortName() {
-        return switch (SORTS[roundNumber % SORTS.length]) {
-            case "selectionSort" -> "selection sort";
-            case "mergeSort" -> "merge sort";
-            default -> "insertion sort";
+        return switch (series.getCurrentRound()) {
+            case 1 -> displayName(InsertionSort.SORT_ID);
+            case 2 -> displayName(SelectionSort.SORT_ID);
+            case 3 -> displayName(MergeSort.SORT_ID);
+            default -> "mixed algorithms";
         };
     }
 
-    public boolean isStealAttempt() {
-        return stealAttempt;
-    }
-
-    public int getRoundStrikes() {
-        return Math.max(state.getTeam1Strikes(), state.getTeam2Strikes());
+    private String displayName(String type) {
+        if (SelectionSort.SORT_ID.equals(type)) {
+            return "selection sort";
+        }
+        return MergeSort.SORT_ID.equals(type) ? "merge sort" : "insertion sort";
     }
 
     public int getSecondsLeft() {
         return secondsLeft;
     }
 
-    public int getCurrentTeam() {
-        return state.getCurrentTeam();
+    public int getCurrentPlayer() {
+        return state.getCurrentPlayer();
     }
 
-    public int getTeam1Points() {
-        return state.getTeam1Points();
+    public int getTeamWins(int team) {
+        return state.getTeamWins(team);
     }
 
-    public int getTeam2Points() {
-        return state.getTeam2Points();
+    public int getTeamStrikes(int team) {
+        return state.getTeamStrikes(team);
     }
 
-    public int getStrikes() {
-        return state.getStrikes();
+    public int getWinner() {
+        return state.getWinner();
     }
 
-    public int getTeam1Strikes() {
-        return state.getTeam1Strikes();
+    public boolean isMatchOver() {
+        return state.isMatchOver();
     }
 
-    public int getTeam2Strikes() {
-        return state.getTeam2Strikes();
+    public boolean isRoundComplete() {
+        return series.isRoundComplete();
+    }
+
+    public boolean isSeriesOver() {
+        return series.isSeriesOver();
+    }
+
+    public int getSeriesWinner() {
+        return series.getSeriesWinner();
+    }
+
+    public int getRoundWins(int team) {
+        return series.getRoundWins(team);
+    }
+
+    public boolean isRandomTargetStep() {
+        return randomTargetStep;
+    }
+
+    public String getRoundPolicyName() {
+        return switch (series.getCurrentRound()) {
+            case 1 -> "Insertion sort";
+            case 2 -> "Selection sort";
+            case 3 -> "Merge sort";
+            default -> "Mixed algorithms · random target step";
+        };
+    }
+
+    public void advanceRound() {
+        if (playing) {
+            throw new IllegalStateException("Finish the current round first");
+        }
+        series.advanceRound();
+        state.resetMatch();
+        dotWinners.clear();
+        numbers = null;
+        steps = List.of();
+        stepIndex = 0;
+        randomTargetStep = false;
+        sortType = null;
+        secondsLeft = ANSWER_SECONDS;
+        buzzed = false;
+        lastAnswerTeam = 0;
+        currentMatchup = matchupScheduler.next();
+    }
+
+    public List<Integer> getDotWinners() {
+        return List.copyOf(dotWinners);
+    }
+
+    public TeamRoster getTeam(int team) {
+        if (team == 1) {
+            return teamOne;
+        }
+        if (team == 2) {
+            return teamTwo;
+        }
+        throw new IllegalArgumentException("Team must be 1 or 2");
+    }
+
+    public Matchup getCurrentMatchup() {
+        return currentMatchup;
+    }
+
+    public int getLastAnswerTeam() {
+        return lastAnswerTeam;
     }
 
     public boolean isBuzzed() {
@@ -340,4 +424,5 @@ public class GameEngine {
     public boolean isPlaying() {
         return playing;
     }
+
 }

@@ -1,176 +1,460 @@
 .root {
-    -fx-background-color: #0b1220;
-    -fx-font-family: "Arial";
+    -fx-background-color: #08111f;
+    -fx-font-family: "Avenir Next", "Helvetica Neue", "Segoe UI", "Arial";
+    -fx-font-smoothing-type: gray;
+}
+
+.app-shell,
+.setup-page,
+.game-page {
+    -fx-background-color: #08111f;
 }
 
 .game-header {
-    -fx-background-color: #172236;
-    -fx-padding: 24px 32px;
+    -fx-background-color: #0d1829;
+    -fx-border-color: transparent transparent #21324b transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 16px 28px;
 }
 
-.team-label {
+.setup-header {
+    -fx-padding: 19px 34px;
+}
+
+.show-center {
+    -fx-min-width: 330px;
+}
+
+.brand-mark {
     -fx-text-fill: #f8fafc;
-    -fx-font-size: 17px;
-    -fx-font-weight: bold;
+    -fx-font-size: 22px;
+    -fx-font-weight: 800;
+}
+
+.match-status,
+.micro-label,
+.field-label,
+.section-label,
+.devtools-label {
+    -fx-text-fill: #7f93ad;
+    -fx-font-size: 10px;
+    -fx-font-weight: 700;
 }
 
 .timer-label {
-    -fx-text-fill: #f8fafc;
-    -fx-font-size: 40px;
-    -fx-font-weight: bold;
+    -fx-text-fill: #ffffff;
+    -fx-font-family: "SF Mono", "Menlo", monospace;
+    -fx-font-size: 64px;
+    -fx-font-weight: 800;
 }
 
-.strike-label {
-    -fx-text-fill: #ef4444;
-    -fx-font-size: 30px;
-    -fx-font-weight: bold;
+.timer-label.timer-critical {
+    -fx-text-fill: #ff1744;
+    -fx-effect: dropshadow(gaussian, rgba(255, 23, 68, 0.80), 20, 0.45, 0, 0);
+}
+
+.score-dots {
+    -fx-padding: 3px 0;
+}
+
+.score-dot {
+    -fx-min-width: 16px;
+    -fx-pref-width: 16px;
+    -fx-max-width: 16px;
+    -fx-min-height: 16px;
+    -fx-pref-height: 16px;
+    -fx-max-height: 16px;
+    -fx-background-color: #243550;
+    -fx-background-radius: 8px;
+    -fx-border-color: #3a4d69;
+    -fx-border-radius: 8px;
+    -fx-border-width: 1px;
+}
+
+.score-dot.dot-team-one {
+    -fx-background-color: #b33d52;
+    -fx-border-color: #b33d52;
+}
+
+.score-dot.dot-team-two {
+    -fx-background-color: #2568ae;
+    -fx-border-color: #2568ae;
+}
+
+.team-card {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0 0 1px 0;
+    -fx-padding: 10px 14px;
+    -fx-min-width: 225px;
+    -fx-max-width: 225px;
+}
+
+.team-one-card,
+.team-two-card,
+.team-card.team-active {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+}
+
+.team-card.team-active {
+    -fx-border-color: transparent transparent #dbe7f5 transparent;
+}
+
+.team-name,
+.wins-label {
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: 800;
+}
+
+.team-name {
+    -fx-font-size: 12px;
+}
+
+.wins-label {
+    -fx-font-family: "SF Mono", "Menlo", monospace;
+    -fx-font-size: 27px;
+}
+
+.header-key {
+    -fx-background-color: transparent;
+    -fx-border-color: #3a4d69;
+    -fx-border-radius: 3px;
+    -fx-text-fill: #dbe7f5;
+    -fx-font-family: "SF Mono", "Menlo", monospace;
+    -fx-font-size: 10px;
+    -fx-font-weight: 800;
+    -fx-padding: 2px 7px;
+}
+
+.competitor-label {
+    -fx-text-fill: #c9d6e6;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+    -fx-padding: 3px 0 0 0;
+}
+
+.strikes-label {
+    -fx-text-fill: #fb7185;
+    -fx-font-size: 12px;
+    -fx-font-weight: 800;
+}
+
+.eyebrow,
+.panel-number {
+    -fx-text-fill: #7f93ad;
+    -fx-font-size: 11px;
+    -fx-font-weight: 800;
+}
+
+.versus-label {
+    -fx-text-fill: #c9d6e6;
+    -fx-font-size: 13px;
+    -fx-font-weight: 700;
+}
+
+.setup-title,
+.match-end-title,
+.question-label {
+    -fx-text-fill: #ffffff;
+    -fx-font-weight: 700;
+}
+
+.setup-title,
+.match-end-title {
+    -fx-font-size: 34px;
+}
+
+.round-intro {
+    -fx-padding: 42px 56px;
+}
+
+.round-intro-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 38px;
+    -fx-font-weight: 700;
+}
+
+.round-intro-score {
+    -fx-text-fill: #c9d6e6;
+    -fx-font-family: "SF Mono", "Menlo", monospace;
+    -fx-font-size: 22px;
+    -fx-font-weight: 700;
 }
 
 .question-label {
-    -fx-text-fill: #f8fafc;
-    -fx-font-size: 25px;
-    -fx-font-weight: bold;
+    -fx-font-size: 30px;
     -fx-text-alignment: center;
     -fx-alignment: center;
 }
 
-.rules-label {
-    -fx-text-fill: #cbd5e1;
+.array-row {
+    -fx-padding: 14px 0 8px 0;
+}
+
+.array-stage-label {
+    -fx-text-fill: #c9d6e6;
     -fx-font-size: 18px;
-    -fx-text-alignment: center;
+    -fx-font-weight: 800;
+}
+
+.setup-intro,
+.match-end-summary,
+.result-label {
+    -fx-text-fill: #9fb1c8;
+    -fx-font-size: 14px;
+}
+
+.team-setup-panel,
+.team-setup-panel.setup-team-one,
+.team-setup-panel.setup-team-two {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 18px 10px 18px 0;
+    -fx-min-width: 390px;
+}
+
+.setup-field,
+.roster-count {
+    -fx-background-color: #f6f9fc;
+    -fx-background-radius: 3px;
+    -fx-border-color: #c6d2e1;
+    -fx-border-radius: 3px;
+    -fx-border-width: 1px;
+    -fx-text-fill: #102036;
+    -fx-font-size: 14px;
+    -fx-padding: 9px 11px;
+}
+
+.setup-field:focused,
+.roster-count:focused {
+    -fx-border-color: #4db8ff;
+    -fx-border-width: 2px;
+}
+
+.roster-count {
+    -fx-max-width: 110px;
+    -fx-pref-width: 82px;
+}
+
+.roster-count .list-cell {
+    -fx-background-color: #f6f9fc;
+    -fx-text-fill: #102036;
     -fx-alignment: center;
+    -fx-padding: 4px 8px;
+}
+
+.roster-count .arrow-button {
+    -fx-background-color: #e7eef6;
+}
+
+.count-question {
+    -fx-text-fill: #c9d6e6;
+    -fx-font-size: 13px;
+    -fx-font-weight: 600;
+}
+
+.setup-error {
+    -fx-background-color: transparent;
+    -fx-border-color: #fb7185;
+    -fx-border-width: 0 0 0 2px;
+    -fx-text-fill: #ffd5dc;
+    -fx-font-size: 13px;
+    -fx-padding: 8px 12px;
+}
+
+.challenge-board,
+.match-end-panel {
+    -fx-background-color: transparent;
+    -fx-border-color: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 24px 38px;
 }
 
 .number-box {
-    -fx-background-color: #243249;
-    -fx-border-color: #465570;
+    -fx-background-color: transparent;
+    -fx-border-color: #334b68;
     -fx-border-width: 1px;
-    -fx-background-radius: 12px;
-    -fx-border-radius: 12px;
-    -fx-min-width: 68px;
-    -fx-min-height: 68px;
-    -fx-text-fill: white;
-    -fx-font-size: 26px;
-    -fx-font-weight: bold;
+    -fx-min-width: 72px;
+    -fx-min-height: 58px;
+    -fx-text-fill: #ffffff;
+    -fx-font-family: "SF Mono", "Menlo", monospace;
+    -fx-font-size: 22px;
+    -fx-font-weight: 700;
     -fx-alignment: center;
 }
 
 .answer-box {
-    -fx-pref-width: 68px;
-    -fx-pref-height: 60px;
-    -fx-font-size: 24px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #0f172a;
-    -fx-background-color: #f8fafc;
-    -fx-background-radius: 10px;
-    -fx-border-radius: 10px;
-    -fx-border-color: #cbd5e1;
+    -fx-pref-width: 72px;
+    -fx-pref-height: 54px;
+    -fx-font-family: "SF Mono", "Menlo", monospace;
+    -fx-font-size: 20px;
+    -fx-font-weight: 700;
+    -fx-text-fill: #102036;
+    -fx-prompt-text-fill: #8b9bb0;
+    -fx-background-color: #f6f9fc;
+    -fx-background-radius: 3px;
+    -fx-border-color: #c6d2e1;
+    -fx-border-radius: 3px;
     -fx-alignment: center;
 }
 
 .answer-box:focused {
-    -fx-border-color: #38bdf8;
+    -fx-border-color: #4db8ff;
     -fx-border-width: 3px;
-    -fx-background-color: #e0f2fe;
 }
 
-.submit-button {
-    -fx-background-color: #2563eb;
-    -fx-text-fill: white;
-    -fx-font-size: 18px;
-    -fx-font-weight: bold;
-    -fx-padding: 14px 34px;
-    -fx-background-radius: 12px;
+.challenge-separator *.line {
+    -fx-border-color: #21324b;
+    -fx-border-width: 1px 0 0 0;
+}
+
+.primary-button,
+.secondary-button,
+.devtools-button {
+    -fx-background-radius: 3px;
+    -fx-border-radius: 3px;
+    -fx-font-weight: 800;
     -fx-cursor: hand;
 }
 
-.submit-button:hover {
-    -fx-background-color: #3b82f6;
+.primary-button {
+    -fx-background-color: #1677bd;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 12px;
+    -fx-padding: 12px 24px;
 }
 
-.submit-button:disabled {
+.primary-button:hover {
+    -fx-background-color: #238bd4;
+}
+
+.primary-button:pressed {
+    -fx-background-color: #0d629f;
+}
+
+.primary-button:disabled {
     -fx-opacity: 0.5;
 }
 
+.secondary-button,
+.devtools-button {
+    -fx-background-color: transparent;
+    -fx-border-color: #3a4d69;
+    -fx-text-fill: #c9d6e6;
+}
+
+.secondary-button {
+    -fx-font-size: 12px;
+    -fx-padding: 12px 24px;
+}
+
+.secondary-button:hover,
+.devtools-button:hover {
+    -fx-background-color: #17263a;
+}
+
+.start-button {
+    -fx-padding: 14px 30px;
+}
+
 .buzzer {
-    -fx-background-radius: 1000px;
-    -fx-border-radius: 1000px;
-    -fx-border-width: 4px;
-    -fx-min-width: 145px;
-    -fx-min-height: 145px;
-    -fx-max-width: 145px;
-    -fx-max-height: 145px;
-    -fx-text-fill: white;
-    -fx-font-size: 19px;
-    -fx-font-weight: bold;
-    -fx-text-alignment: center;
-    -fx-alignment: center;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.65), 15, 0.3, 0, 9);
+    -fx-min-width: 285px;
+    -fx-min-height: 54px;
+    -fx-background-radius: 3px;
+    -fx-border-radius: 3px;
+    -fx-border-width: 1px;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 14px;
+    -fx-font-weight: 800;
     -fx-cursor: hand;
 }
 
 .buzzer.team-one {
-    -fx-background-color: linear-gradient(to bottom, #fb7185, #dc3545, #991b1b);
-    -fx-border-color: #7f1d1d;
+    -fx-background-color: #b33d52;
+    -fx-border-color: #b33d52;
 }
 
 .buzzer.team-two {
-    -fx-background-color: linear-gradient(to bottom, #93c5fd, #2563eb, #1e40af);
-    -fx-border-color: #1e3a8a;
+    -fx-background-color: #2568ae;
+    -fx-border-color: #2568ae;
 }
 
-.buzzer.team-one.buzzer-activated,
-.buzzer.team-one.buzzer-activated:hover {
-    -fx-background-color: #7f1d1d;
-    -fx-border-color: #450a0a;
+.buzzer.team-one:hover {
+    -fx-background-color: #c94b62;
 }
 
-.buzzer.team-two.buzzer-activated,
-.buzzer.team-two.buzzer-activated:hover {
-    -fx-background-color: #1e3a8a;
-    -fx-border-color: #172554;
+.buzzer.team-two:hover {
+    -fx-background-color: #317cc6;
 }
 
-.buzzer.buzzer-activated {
+.buzzer.buzzer-activated,
+.buzzer.buzzer-activated:disabled {
     -fx-opacity: 1;
-    -fx-scale-x: 0.94;
-    -fx-scale-y: 0.94;
-    -fx-effect: innershadow(gaussian, rgba(0,0,0,0.75), 14, 0.5, 0, 5);
+    -fx-border-color: #ffffff;
+    -fx-border-width: 2px;
+}
+
+.buzzer:disabled {
+    -fx-opacity: 0.35;
 }
 
 .result-label {
-    -fx-font-size: 24px;
-    -fx-font-weight: bold;
-    -fx-text-fill: #f8fafc;
+    -fx-font-weight: 600;
+    -fx-text-alignment: center;
+    -fx-alignment: center;
 }
 
-.feedback-symbol {
-    -fx-font-size: 280px;
-    -fx-font-weight: bold;
-    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.85), 20, 0.5, 0, 8);
+.result-success {
+    -fx-text-fill: #4ade80;
 }
 
-.devtools-panel {
-    -fx-background-color: #172236;
-    -fx-padding: 20px 14px;
-    -fx-spacing: 12px;
-    -fx-min-width: 170px;
+.result-error {
+    -fx-text-fill: #fb7185;
+}
+
+.feedback-banner {
+    -fx-background-color: #0d1829;
+    -fx-border-color: #334b68;
+    -fx-border-width: 1px;
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 13px;
+    -fx-font-weight: 800;
+    -fx-padding: 10px 20px;
+}
+
+.feedback-banner.feedback-correct {
+    -fx-border-color: #4ade80;
+}
+
+.feedback-banner.feedback-wrong {
+    -fx-border-color: #fb7185;
+}
+
+.devtools-bar {
+    -fx-background-color: transparent;
+    -fx-border-color: #1d2d44 transparent transparent transparent;
+    -fx-border-width: 1px 0 0 0;
+    -fx-padding: 8px 28px;
 }
 
 .devtools-button {
-    -fx-background-color: #374151;
-    -fx-text-fill: white;
-    -fx-font-size: 14px;
-    -fx-padding: 12px 15px;
-    -fx-background-radius: 8px;
-    -fx-cursor: hand;
-    -fx-pref-width: 150px;
+    -fx-font-size: 9px;
+    -fx-padding: 6px 10px;
 }
 
-.devtools-button:hover {
-    -fx-background-color: #4b5563;
+.game-viewport,
+.game-viewport > .viewport {
+    -fx-background-color: transparent;
 }
 
-.devtools-button:pressed {
-    -fx-background-color: #1d4ed8;
+.game-viewport .scroll-bar:vertical {
+    -fx-pref-width: 10px;
+    -fx-background-color: transparent;
+}
+
+.game-viewport .scroll-bar:vertical .thumb {
+    -fx-background-color: #334b68;
+    -fx-background-radius: 5px;
 }

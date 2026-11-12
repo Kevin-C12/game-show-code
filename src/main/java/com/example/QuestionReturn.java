@@ -16,6 +16,8 @@ public class QuestionReturn {
 
     public String[] selectionSort = {};
 
+    public String[] mergeSort = {};
+
     public String[] bubbleSort = {};
 
     // Constructor: automatically loads JSON files
@@ -30,6 +32,7 @@ public class QuestionReturn {
 
         List<String> insertion = new ArrayList<>();
         List<String> selection = new ArrayList<>();
+        List<String> merge = new ArrayList<>();
         List<String> bubble = new ArrayList<>();
 
         try {
@@ -66,6 +69,10 @@ public class QuestionReturn {
                                      selection.add(json);
                                      break;
 
+                                 case "mergeSort":
+                                     merge.add(json);
+                                     break;
+
                                  case "bubbleSort":
                                      bubble.add(json);
                                      break;
@@ -82,6 +89,7 @@ public class QuestionReturn {
             // Convert lists into arrays
             insertionSort = insertion.toArray(new String[0]);
             selectionSort = selection.toArray(new String[0]);
+            mergeSort = merge.toArray(new String[0]);
             bubbleSort = bubble.toArray(new String[0]);
 
         } catch (IOException e) {
@@ -98,6 +106,7 @@ public class QuestionReturn {
 
         data.put("insertionSort", parseQuestions(insertionSort));
         data.put("selectionSort", parseQuestions(selectionSort));
+        data.put("mergeSort", parseQuestions(mergeSort));
         data.put("bubbleSort", parseQuestions(bubbleSort));
 
         return gson.toJson(data);
@@ -155,6 +164,14 @@ public class QuestionReturn {
     public void setSelectionSort(String[] selectionSort) {
         // User validation goes here
         this.selectionSort = selectionSort;
+    }
+
+    public String[] getMergeSort() {
+        return mergeSort;
+    }
+
+    public void setMergeSort(String[] mergeSort) {
+        this.mergeSort = mergeSort;
     }
 
     public String[] getBubbleSort() {

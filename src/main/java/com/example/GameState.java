@@ -1,84 +1,91 @@
 
 package com.example;
 
+/** Match score, strikes, and active-team state for a two-team game. */
 public class GameState {
 
-    private int currentTeam = 0;
+    private static final int WINS_TO_TAKE_MATCH = 5;
+    private static final int STRIKES_TO_FORFEIT = 3;
 
-    private int team1Points = 0;
-    private int team2Points = 0;
+    private int currentPlayer;
+    private final int[] teamWins = new int[2];
+    private final int[] teamStrikes = new int[2];
+    private int winner;
 
-    private int team1Strikes = 0;
-    private int team2Strikes = 0;
-
-    public int getCurrentTeam() {
-        return currentTeam;
+    public int getCurrentPlayer() {
+        return currentPlayer;
     }
 
-    public int getTeam1Points() {
-        return team1Points;
+    public int getTeamWins(int team) {
+        return teamWins[indexFor(team)];
     }
 
-    public int getTeam2Points() {
-        return team2Points;
+    public int getTeamStrikes(int team) {
+        return teamStrikes[indexFor(team)];
     }
 
-    // Get strikes for current team
-    public int getStrikes() {
-        return currentTeam == 1
-            ? team1Strikes : currentTeam == 2 ? team2Strikes : 0;
+    public int getWinner() {
+        return winner;
     }
 
-    public int getTeam1Strikes() {
-        return team1Strikes;
+    public boolean isMatchOver() {
+        return winner != 0;
     }
 
-    public int getTeam2Strikes() {
-        return team2Strikes;
-    }
-
-    // Award points to current team
-    public void addPoints(int points) {
-        if (currentTeam == 1) {
-            team1Points += points;
-        } else {
-            team2Points += points;
+    public void recordCorrect() {
+        ensureAnswerOwner();
+        if (isMatchOver()) {
+            throw new IllegalStateException("The match is already over");
+        }
+        int teamIndex = indexFor(currentPlayer);
+        teamWins[teamIndex]++;
+        if (teamWins[teamIndex] == WINS_TO_TAKE_MATCH) {
+            winner = currentPlayer;
         }
     }
 
-    // Add a strike to current team
-    public void addStrike() {
-        if (currentTeam == 1) {
-            team1Strikes++;
-        } else {
-            team2Strikes++;
+    public void recordWrong() {
+        ensureAnswerOwner();
+        if (isMatchOver()) {
+            throw new IllegalStateException("The match is already over");
+        }
+        int teamIndex = indexFor(currentPlayer);
+        teamStrikes[teamIndex]++;
+        if (teamStrikes[teamIndex] == STRIKES_TO_FORFEIT) {
+            winner = currentPlayer == 1 ? 2 : 1;
         }
     }
 
-    public void setCurrentTeam(int team) {
+    public void setCurrentPlayer(int player) {
+        if (player != 1 && player != 2) {
+            throw new IllegalArgumentException("Player must be 1 or 2");
+        }
+        currentPlayer = player;
+    }
+
+    public void clearCurrentPlayer() {
+        currentPlayer = 0;
+    }
+
+    public void resetMatch() {
+        clearCurrentPlayer();
+        teamWins[0] = 0;
+        teamWins[1] = 0;
+        teamStrikes[0] = 0;
+        teamStrikes[1] = 0;
+        winner = 0;
+    }
+
+    private void ensureAnswerOwner() {
+        if (currentPlayer == 0) {
+            throw new IllegalStateException("No team owns this answer attempt");
+        }
+    }
+
+    private int indexFor(int team) {
         if (team != 1 && team != 2) {
             throw new IllegalArgumentException("Team must be 1 or 2");
         }
-        currentTeam = team;
-    }
-
-    public void startRound() {
-        currentTeam = 0;
-        team1Strikes = 0;
-        team2Strikes = 0;
-    }
-
-    // Switch teams without resetting strikes
-    public void switchTeam() {
-        currentTeam = currentTeam == 1 ? 2 : 1;
-    }
-
-    // Reset current team's strikes
-    public void resetStrikes() {
-        if (currentTeam == 1) {
-            team1Strikes = 0;
-        } else {
-            team2Strikes = 0;
-        }
+        return team - 1;
     }
 }
